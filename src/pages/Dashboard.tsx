@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, Plus, Users, Receipt, LogOut, Loader2 } from "lucide-react";
+import { Plus, Users, Loader2, LogOut } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { GroupCard } from "@/components/GroupCard";
@@ -26,7 +26,6 @@ const Dashboard = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -36,7 +35,6 @@ const Dashboard = () => {
       }
     );
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (!session) {
@@ -85,95 +83,64 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary rounded-lg">
-                <BookOpen className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">The Cash Book</h1>
-                <p className="text-sm text-muted-foreground">
-                  {session?.user?.email || session?.user?.phone}
-                </p>
-              </div>
-            </div>
-            <Button variant="ghost" size="icon" onClick={handleSignOut}>
-              <LogOut className="h-5 w-5" />
-            </Button>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-24">
+      <header className="border-b bg-background/95 backdrop-blur-sm sticky top-0 z-10 safe-top">
+        <div className="px-4 py-4 flex items-center justify-between">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold">The Cash Book</h1>
+            <p className="text-sm text-muted-foreground truncate">
+              {session?.user?.email || session?.user?.phone}
+            </p>
           </div>
+          <Button variant="ghost" size="icon" onClick={handleSignOut}>
+            <LogOut className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 
-      <main className="container max-w-6xl mx-auto px-4 py-8">
-        <div className="grid gap-6 md:grid-cols-3 mb-8">
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Groups</p>
-                <p className="text-2xl font-bold">{groups.length}</p>
-              </div>
-            </div>
+      <main className="px-4 py-6">
+        <div className="grid gap-4 grid-cols-2 mb-6">
+          <Card className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Total Groups</p>
+            <p className="text-2xl font-bold">{groups.length}</p>
           </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-success/10 rounded-lg">
-                <Receipt className="h-6 w-6 text-success" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Active Trips</p>
-                <p className="text-2xl font-bold">{groups.length}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-accent/10 rounded-lg">
-                <BookOpen className="h-6 w-6 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Balance</p>
-                <p className="text-2xl font-bold">$0.00</p>
-              </div>
-            </div>
+          <Card className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Active Trips</p>
+            <p className="text-2xl font-bold">{groups.length}</p>
           </Card>
         </div>
 
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Your Groups</h2>
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Group
-          </Button>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold">Your Groups</h2>
         </div>
 
         {groups.length === 0 ? (
-          <Card className="p-12 text-center">
-            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No groups yet</h3>
-            <p className="text-muted-foreground mb-4">
+          <Card className="p-8 text-center">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+            <h3 className="text-base font-semibold mb-2">No groups yet</h3>
+            <p className="text-sm text-muted-foreground mb-4">
               Create your first group to start splitting expenses
             </p>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Group
-            </Button>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4">
             {groups.map((group) => (
               <GroupCard key={group.id} group={group} />
             ))}
           </div>
         )}
       </main>
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-6 right-6 z-20 safe-bottom">
+        <Button 
+          size="lg" 
+          className="h-16 w-16 rounded-full shadow-2xl"
+          onClick={() => setCreateDialogOpen(true)}
+        >
+          <Plus className="h-7 w-7" />
+        </Button>
+      </div>
 
       <CreateGroupDialog
         open={createDialogOpen}

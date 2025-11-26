@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -112,47 +112,49 @@ export function CreateGroupDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create New Group</DialogTitle>
-          <DialogDescription>
-            Create a group to split expenses with friends, roommates, or for a trip
-          </DialogDescription>
-        </DialogHeader>
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="max-h-[90vh]">
+        <DrawerHeader>
+          <DrawerTitle>Create New Group</DrawerTitle>
+          <DrawerDescription>
+            Split expenses with friends, roommates, or for a trip
+          </DrawerDescription>
+        </DrawerHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 px-4 pb-6">
           <div>
-            <Label htmlFor="name">Group Name</Label>
+            <Label htmlFor="name" className="text-base">Group Name</Label>
             <Input
               id="name"
               placeholder="Weekend Trip, House Expenses, etc."
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              className="h-12 text-base mt-1"
             />
           </div>
 
           <div>
-            <Label htmlFor="description">Description (optional)</Label>
+            <Label htmlFor="description" className="text-base">Description (optional)</Label>
             <Textarea
               id="description"
               placeholder="Add details about this group"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
+              className="text-base mt-1"
             />
           </div>
 
           <div>
-            <Label htmlFor="currency">Currency</Label>
+            <Label htmlFor="currency" className="text-base">Currency</Label>
             <Select value={currency} onValueChange={setCurrency}>
-              <SelectTrigger>
+              <SelectTrigger className="h-12 text-base mt-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {CURRENCIES.map((curr) => (
-                  <SelectItem key={curr.code} value={curr.code}>
+                  <SelectItem key={curr.code} value={curr.code} className="text-base">
                     {curr.code} - {curr.name}
                   </SelectItem>
                 ))}
@@ -160,22 +162,22 @@ export function CreateGroupDialog({
             </Select>
           </div>
 
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="flex-1"
+              className="flex-1 h-12 text-base"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={loading} className="flex-1 h-12 text-base">
+              {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
               Create Group
             </Button>
           </div>
         </form>
-      </DialogContent>
+      </DrawerContent>
 
       {createdGroupId && (
         <GroupInviteDialog
@@ -185,6 +187,6 @@ export function CreateGroupDialog({
           onOpenChange={setShowInvite}
         />
       )}
-    </Dialog>
+    </Drawer>
   );
 }
