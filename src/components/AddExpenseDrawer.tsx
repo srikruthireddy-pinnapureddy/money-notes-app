@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/drawer";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Camera } from "lucide-react";
+import { CameraCapture } from "./CameraCapture";
 
 type Member = {
   id: string;
@@ -44,6 +45,8 @@ export function AddExpenseDrawer({
 }: AddExpenseDrawerProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
@@ -133,6 +136,48 @@ export function AddExpenseDrawer({
     setSelectedMembers(new Set(members.map((m) => m.user_id)));
   };
 
+  const handleScanReceipt = async (imageData: string) => {
+    try {
+      setScanning(true);
+      setShowCamera(false);
+
+      const { data, error } = await supabase.functions.invoke("scan-receipt", {
+        body: { image: imageData },
+      });
+
+      if (error) throw error;
+
+      if (data) {
+        setDescription(data.description || "");
+        setAmount(data.amount?.toString() || "");
+        setCategory(data.category || "");
+        
+        toast({
+          title: "Receipt scanned!",
+          description: "Expense details have been filled automatically",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error scanning receipt:", error);
+      toast({
+        title: "Scan failed",
+        description: error.message || "Could not scan receipt. Please enter details manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  if (showCamera) {
+    return (
+      <CameraCapture
+        onCapture={handleScanReceipt}
+        onCancel={() => setShowCamera(false)}
+      />
+    );
+  }
+
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[90vh]">
@@ -144,6 +189,26 @@ export function AddExpenseDrawer({
         </DrawerHeader>
 
         <div className="px-4 overflow-y-auto space-y-6 pb-4">
+          {/* AI Receipt Scanner Button */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-14 text-base"
+            onClick={() => setShowCamera(true)}
+            disabled={scanning}
+          >
+            {scanning ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Scanning...
+              </>
+            ) : (
+              <>
+                <Camera className="mr-2 h-5 w-5" />
+                Scan Receipt with AI
+              </>
+            )}
+          </Button>
           {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description" className="text-base">
