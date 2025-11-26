@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { GroupInviteDialog } from "./GroupInviteDialog";
 
 const CURRENCIES = [
   { code: "USD", name: "US Dollar" },
@@ -47,6 +48,9 @@ export function CreateGroupDialog({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [currency, setCurrency] = useState("USD");
+  const [createdGroupId, setCreatedGroupId] = useState<string | null>(null);
+  const [createdGroupName, setCreatedGroupName] = useState("");
+  const [showInvite, setShowInvite] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +90,11 @@ export function CreateGroupDialog({
         description: "Group created successfully",
       });
 
+      // Show invite dialog
+      setCreatedGroupId(group.id);
+      setCreatedGroupName(group.name);
+      setShowInvite(true);
+      
       setName("");
       setDescription("");
       setCurrency("USD");
@@ -167,6 +176,15 @@ export function CreateGroupDialog({
           </div>
         </form>
       </DialogContent>
+
+      {createdGroupId && (
+        <GroupInviteDialog
+          groupId={createdGroupId}
+          groupName={createdGroupName}
+          open={showInvite}
+          onOpenChange={setShowInvite}
+        />
+      )}
     </Dialog>
   );
 }

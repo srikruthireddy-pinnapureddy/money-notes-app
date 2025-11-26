@@ -110,6 +110,54 @@ export type Database = {
           },
         ]
       }
+      group_invites: {
+        Row: {
+          code: string
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          group_id: string
+          id: string
+          max_uses: number | null
+          uses_count: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          group_id: string
+          id?: string
+          max_uses?: number | null
+          uses_count?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          group_id?: string
+          id?: string
+          max_uses?: number | null
+          uses_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_invites_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_members: {
         Row: {
           group_id: string
@@ -274,7 +322,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_group_admin: {
+        Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
