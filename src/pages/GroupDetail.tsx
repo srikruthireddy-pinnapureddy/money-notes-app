@@ -18,6 +18,8 @@ import {
 import { AddExpenseDrawer } from "@/components/AddExpenseDrawer";
 import { GroupInviteDialog } from "@/components/GroupInviteDialog";
 import { SettlementsSection } from "@/components/SettlementsSection";
+import { EditExpenseDrawer } from "@/components/EditExpenseDrawer";
+import { DeleteExpenseDialog } from "@/components/DeleteExpenseDialog";
 
 type Group = {
   id: string;
@@ -72,6 +74,10 @@ const GroupDetail = () => {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [editExpense, setEditExpense] = useState<Expense | null>(null);
+  const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
+  const [deleteExpenseDesc, setDeleteExpenseDesc] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -82,6 +88,10 @@ const GroupDetail = () => {
   const fetchGroupData = async () => {
     try {
       setLoading(true);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      setCurrentUserId(user.id);
       
       // Fetch group details
       const { data: groupData, error: groupError } = await supabase
@@ -320,41 +330,68 @@ const GroupDetail = () => {
             </Card>
           ) : (
             <div className="space-y-3">
-              {expenses.map((expense) => (
-                <Card key={expense.id} className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
-                        {expense.description}
+              {expenses.map((expense) => {
+                const isCreator = expense.paid_by === currentUserId;
+                
+                return (
+                  <Card key={expense.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {expense.description}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Paid by {expense.profiles.display_name}
+                        </p>
+                        {expense.category && (
+                          <Badge variant="outline" className="text-xs mt-2">
+                            {expense.category}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-bold text-base">
+                          {group.currency} {Number(expense.amount).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(expense.expense_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <Separator className="my-3" />
+                    
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        Split between {expense.expense_splits.length} members
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Paid by {expense.profiles.display_name}
-                      </p>
-                      {expense.category && (
-                        <Badge variant="outline" className="text-xs mt-2">
-                          {expense.category}
-                        </Badge>
+                      
+                      {isCreator && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditExpense(expense)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setDeleteExpenseId(expense.id);
+                              setDeleteExpenseDesc(expense.description);
+                            }}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       )}
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-base">
-                        {expense.currency} {Number(expense.amount).toFixed(2)}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(expense.expense_date).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <Separator className="my-3" />
-                  
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Split between {expense.expense_splits.length} members
-                    </p>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
@@ -385,6 +422,28 @@ const GroupDetail = () => {
         onOpenChange={setInviteOpen}
         groupId={id!}
         groupName={group.name}
+      />
+
+      <EditExpenseDrawer
+        open={editExpense !== null}
+        onOpenChange={(open) => !open && setEditExpense(null)}
+        expense={editExpense}
+        groupCurrency={group.currency}
+        members={members}
+        onExpenseUpdated={fetchGroupData}
+      />
+
+      <DeleteExpenseDialog
+        open={deleteExpenseId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteExpenseId(null);
+            setDeleteExpenseDesc("");
+          }
+        }}
+        expenseId={deleteExpenseId}
+        expenseDescription={deleteExpenseDesc}
+        onExpenseDeleted={fetchGroupData}
       />
     </div>
   );
