@@ -17,6 +17,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Camera } from "lucide-react";
 import { CameraCapture } from "./CameraCapture";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { z } from "zod";
 
 type Member = {
   id: string;
@@ -35,6 +43,12 @@ interface AddExpenseDrawerProps {
   onExpenseAdded: () => void;
 }
 
+type SplitType = "equal" | "exact" | "percentage" | "shares";
+
+type CustomSplit = {
+  [userId: string]: number;
+};
+
 export function AddExpenseDrawer({
   open,
   onOpenChange,
@@ -51,14 +65,128 @@ export function AddExpenseDrawer({
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+  const [splitType, setSplitType] = useState<SplitType>("equal");
+  const [customSplits, setCustomSplits] = useState<CustomSplit>({});
+
+  const calculateSplitAmounts = (): { userId: string; amount: number }[] => {
+    const totalAmount = parseFloat(amount);
+    
+    if (splitType === "equal") {
+      const splitAmount = totalAmount / selectedMembers.size;
+      return Array.from(selectedMembers).map((userId) => ({
+        userId,
+        amount: Math.round(splitAmount * 100) / 100,
+      }));
+    }
+    
+    if (splitType === "exact") {
+      return Array.from(selectedMembers).map((userId) => ({
+        userId,
+        amount: customSplits[userId] || 0,
+      }));
+    }
+    
+    if (splitType === "percentage") {
+      return Array.from(selectedMembers).map((userId) => ({
+        userId,
+        amount: Math.round((totalAmount * (customSplits[userId] || 0) / 100) * 100) / 100,
+      }));
+    }
+    
+    if (splitType === "shares") {
+      const totalShares = Array.from(selectedMembers).reduce(
+        (sum, userId) => sum + (customSplits[userId] || 0),
+        0
+      );
+      return Array.from(selectedMembers).map((userId) => ({
+        userId,
+        amount: totalShares > 0 
+          ? Math.round((totalAmount * (customSplits[userId] || 0) / totalShares) * 100) / 100
+          : 0,
+      }));
+    }
+    
+    return [];
+  };
+
+  const validateCustomSplits = (): boolean => {
+    if (splitType === "equal") return true;
+    
+    const totalAmount = parseFloat(amount);
+    const splits = calculateSplitAmounts();
+    const total = splits.reduce((sum, split) => sum + split.amount, 0);
+    
+    if (splitType === "exact") {
+      if (Math.abs(total - totalAmount) > 0.01) {
+        toast({
+          title: "Invalid split",
+          description: `Split amounts must total ${groupCurrency} ${totalAmount.toFixed(2)}. Current: ${groupCurrency} ${total.toFixed(2)}`,
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+    
+    if (splitType === "percentage") {
+      const totalPercentage = Array.from(selectedMembers).reduce(
+        (sum, userId) => sum + (customSplits[userId] || 0),
+        0
+      );
+      if (Math.abs(totalPercentage - 100) > 0.01) {
+        toast({
+          title: "Invalid split",
+          description: `Percentages must total 100%. Current: ${totalPercentage.toFixed(1)}%`,
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+    
+    if (splitType === "shares") {
+      const totalShares = Array.from(selectedMembers).reduce(
+        (sum, userId) => sum + (customSplits[userId] || 0),
+        0
+      );
+      if (totalShares === 0) {
+        toast({
+          title: "Invalid split",
+          description: "Total shares must be greater than 0",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+    
+    return true;
+  };
 
   const handleSubmit = async () => {
-    if (!description.trim() || !amount || selectedMembers.size === 0) {
+    // Validate inputs
+    const descriptionSchema = z.string().trim().min(1).max(200);
+    const amountSchema = z.number().positive().max(999999999);
+    
+    try {
+      descriptionSchema.parse(description);
+      amountSchema.parse(parseFloat(amount));
+    } catch (error) {
       toast({
-        title: "Missing information",
-        description: "Please fill in all required fields and select at least one member",
+        title: "Invalid input",
+        description: "Please check your description and amount",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (selectedMembers.size === 0) {
+      toast({
+        title: "Missing information",
+        description: "Please select at least one member",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateCustomSplits()) {
       return;
     }
 
@@ -86,11 +214,10 @@ export function AddExpenseDrawer({
       if (expenseError) throw expenseError;
 
       // Create expense splits
-      const splitAmount = parseFloat(amount) / selectedMembers.size;
-      const splits = Array.from(selectedMembers).map((userId) => ({
+      const splits = calculateSplitAmounts().map((split) => ({
         expense_id: expense.id,
-        user_id: userId,
-        amount: splitAmount,
+        user_id: split.userId,
+        amount: split.amount,
       }));
 
       const { error: splitsError } = await supabase
@@ -109,6 +236,8 @@ export function AddExpenseDrawer({
       setAmount("");
       setCategory("");
       setSelectedMembers(new Set());
+      setSplitType("equal");
+      setCustomSplits({});
       onOpenChange(false);
       onExpenseAdded();
     } catch (error: any) {
@@ -126,6 +255,10 @@ export function AddExpenseDrawer({
     const newSelected = new Set(selectedMembers);
     if (newSelected.has(userId)) {
       newSelected.delete(userId);
+      // Remove custom split for unselected member
+      const newCustomSplits = { ...customSplits };
+      delete newCustomSplits[userId];
+      setCustomSplits(newCustomSplits);
     } else {
       newSelected.add(userId);
     }
@@ -134,6 +267,26 @@ export function AddExpenseDrawer({
 
   const selectAll = () => {
     setSelectedMembers(new Set(members.map((m) => m.user_id)));
+  };
+
+  const updateCustomSplit = (userId: string, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setCustomSplits({
+      ...customSplits,
+      [userId]: numValue,
+    });
+  };
+
+  const getCalculatedAmount = (userId: string): string => {
+    if (!amount || splitType === "equal") {
+      return selectedMembers.size > 0 
+        ? (parseFloat(amount || "0") / selectedMembers.size).toFixed(2)
+        : "0.00";
+    }
+    
+    const splits = calculateSplitAmounts();
+    const split = splits.find(s => s.userId === userId);
+    return split ? split.amount.toFixed(2) : "0.00";
   };
 
   const handleScanReceipt = async (imageData: string) => {
@@ -284,19 +437,77 @@ export function AddExpenseDrawer({
                   </Label>
                   {selectedMembers.has(member.user_id) && amount && (
                     <span className="text-sm text-muted-foreground">
-                      {groupCurrency} {(parseFloat(amount) / selectedMembers.size).toFixed(2)}
+                      {groupCurrency} {getCalculatedAmount(member.user_id)}
                     </span>
                   )}
                 </div>
               ))}
             </div>
-
-            {selectedMembers.size > 0 && (
-              <p className="text-sm text-muted-foreground">
-                Split equally between {selectedMembers.size} member{selectedMembers.size !== 1 ? "s" : ""}
-              </p>
-            )}
           </div>
+
+          {/* Split Type Selection */}
+          {selectedMembers.size > 0 && (
+            <div className="space-y-3">
+              <Label className="text-base">Split Method</Label>
+              <Select value={splitType} onValueChange={(value) => setSplitType(value as SplitType)}>
+                <SelectTrigger className="h-12 text-base">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="equal" className="text-base">
+                    Split Equally
+                  </SelectItem>
+                  <SelectItem value="exact" className="text-base">
+                    Exact Amounts
+                  </SelectItem>
+                  <SelectItem value="percentage" className="text-base">
+                    By Percentage
+                  </SelectItem>
+                  <SelectItem value="shares" className="text-base">
+                    By Shares
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Custom Split Inputs */}
+              {splitType !== "equal" && (
+                <div className="space-y-3 border rounded-lg p-4 max-h-48 overflow-y-auto">
+                  {Array.from(selectedMembers).map((userId) => {
+                    const member = members.find(m => m.user_id === userId);
+                    if (!member) return null;
+                    
+                    return (
+                      <div key={userId} className="space-y-2">
+                        <Label className="text-sm">
+                          {member.profiles.display_name}
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder={splitType === "exact" ? "Amount" : splitType === "percentage" ? "%" : "Shares"}
+                            value={customSplits[userId] || ""}
+                            onChange={(e) => updateCustomSplit(userId, e.target.value)}
+                            className="h-10 text-base"
+                          />
+                          <span className="text-sm text-muted-foreground shrink-0">
+                            = {groupCurrency} {getCalculatedAmount(userId)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {splitType === "equal" && (
+                <p className="text-sm text-muted-foreground">
+                  Split equally between {selectedMembers.size} member{selectedMembers.size !== 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <DrawerFooter className="safe-bottom">
