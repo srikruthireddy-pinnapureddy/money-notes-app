@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { AddExpenseDrawer } from "@/components/AddExpenseDrawer";
 import { GroupInviteDialog } from "@/components/GroupInviteDialog";
+import { SettlementsSection } from "@/components/SettlementsSection";
 
 type Group = {
   id: string;
@@ -262,6 +263,14 @@ const GroupDetail = () => {
             </div>
           )}
         </Card>
+
+        {/* Settlements Section */}
+        <SettlementsSection
+          groupId={id!}
+          groupCurrency={group.currency}
+          balances={balances}
+          onSettled={fetchGroupData}
+        />
 
         {/* Members */}
         <Card className="p-4">
