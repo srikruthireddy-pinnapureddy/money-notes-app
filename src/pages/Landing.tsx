@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Users, Receipt, PieChart, ArrowRight, Wallet, Globe, Shield } from "lucide-react";
+import { motion } from "framer-motion";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -55,138 +56,295 @@ const Landing = () => {
     },
   ];
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+      },
+    },
+  };
+
+  const fadeInUp = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+      },
+    },
+  };
+
+  const scaleIn = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        duration: 0.5,
+      },
+    },
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 overflow-hidden">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
+      <motion.nav
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50"
+      >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <motion.div
+            className="flex items-center gap-2"
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+          >
             <div className="p-2 bg-primary rounded-lg">
               <BookOpen className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="text-lg font-bold">The Cash Book</span>
-          </div>
+          </motion.div>
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
-              <Button onClick={() => navigate("/dashboard")}>
-                Go to Dashboard
-              </Button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button onClick={() => navigate("/dashboard")}>
+                  Go to Dashboard
+                </Button>
+              </motion.div>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => navigate("/auth")}>
-                  Sign In
-                </Button>
-                <Button onClick={() => navigate("/auth")}>
-                  Get Started
-                </Button>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button variant="ghost" onClick={() => navigate("/auth")}>
+                    Sign In
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button onClick={() => navigate("/auth")}>
+                    Get Started
+                  </Button>
+                </motion.div>
               </>
             )}
           </div>
         </div>
-      </nav>
+      </motion.nav>
 
       {/* Hero Section */}
       <section className="px-4 py-16 md:py-24">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6"
+          >
             <span>Smart Expense Splitting</span>
-          </div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+          </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.3 }}
+            className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight"
+          >
             Split expenses with{" "}
-            <span className="text-primary">friends</span>,{" "}
+            <motion.span
+              className="text-primary inline-block"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+            >
+              friends
+            </motion.span>
+            ,{" "}
             not friendships
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
+          >
             The Cash Book makes it easy to track shared expenses, split bills fairly, and settle up — 
             so you can focus on making memories, not doing math.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="h-12 px-8 text-base" onClick={() => navigate("/auth")}>
-              Start for Free
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button size="lg" variant="outline" className="h-12 px-8 text-base" onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}>
-              Learn More
-            </Button>
-          </div>
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.7 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center"
+          >
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button size="lg" className="h-12 px-8 text-base" onClick={() => navigate("/auth")}>
+                Start for Free
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button size="lg" variant="outline" className="h-12 px-8 text-base" onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}>
+                Learn More
+              </Button>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
       {/* Features Section */}
       <section id="features" className="px-4 py-16 bg-muted/30">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeInUp}
+            className="text-center mb-12"
+          >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Everything you need to manage group expenses
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               From weekend trips to shared apartments, The Cash Book has you covered.
             </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature) => (
-              <div
+          </motion.div>
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={containerVariants}
+            className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {features.map((feature, index) => (
+              <motion.div
                 key={feature.title}
-                className="p-6 rounded-xl bg-background border border-border/50 hover:border-primary/30 hover:shadow-lg transition-all duration-300"
+                variants={itemVariants}
+                whileHover={{ 
+                  y: -8, 
+                  boxShadow: "0 20px 40px -15px rgba(0,0,0,0.1)",
+                  borderColor: "hsl(var(--primary) / 0.3)"
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className="p-6 rounded-xl bg-background border border-border/50 cursor-pointer"
               >
-                <div className="p-3 bg-primary/10 rounded-lg w-fit mb-4">
+                <motion.div
+                  initial={{ scale: 1 }}
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                  className="p-3 bg-primary/10 rounded-lg w-fit mb-4"
+                >
                   <feature.icon className="h-6 w-6 text-primary" />
-                </div>
+                </motion.div>
                 <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
                 <p className="text-muted-foreground">{feature.description}</p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* How It Works Section */}
       <section className="px-4 py-16">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeInUp}
+            className="text-center mb-12"
+          >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               How it works
             </h2>
             <p className="text-muted-foreground text-lg">
               Get started in three simple steps
             </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
+          </motion.div>
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={containerVariants}
+            className="grid md:grid-cols-3 gap-8"
+          >
             {[
               { step: "1", title: "Create a Group", description: "Set up a group for your trip, household, or event." },
               { step: "2", title: "Add Expenses", description: "Log expenses as they happen, or scan receipts for auto-fill." },
               { step: "3", title: "Settle Up", description: "See who owes whom and settle with minimal transactions." },
-            ].map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground text-xl font-bold flex items-center justify-center mx-auto mb-4">
+            ].map((item, index) => (
+              <motion.div
+                key={item.step}
+                variants={itemVariants}
+                className="text-center"
+              >
+                <motion.div
+                  whileHover={{ scale: 1.1, rotate: 360 }}
+                  transition={{ duration: 0.5, type: "spring" }}
+                  className="w-12 h-12 rounded-full bg-primary text-primary-foreground text-xl font-bold flex items-center justify-center mx-auto mb-4"
+                >
                   {item.step}
-                </div>
+                </motion.div>
                 <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
                 <p className="text-muted-foreground">{item.description}</p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="px-4 py-16 bg-primary/5">
+      <motion.section
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={scaleIn}
+        className="px-4 py-16 bg-primary/5"
+      >
         <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          <motion.h2
+            variants={fadeInUp}
+            className="text-3xl md:text-4xl font-bold mb-4"
+          >
             Ready to simplify expense splitting?
-          </h2>
-          <p className="text-muted-foreground text-lg mb-8">
+          </motion.h2>
+          <motion.p
+            variants={fadeInUp}
+            className="text-muted-foreground text-lg mb-8"
+          >
             Join thousands of users who have already made group expenses stress-free.
-          </p>
-          <Button size="lg" className="h-12 px-8 text-base" onClick={() => navigate("/auth")}>
-            Get Started Free
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          </motion.p>
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Button size="lg" className="h-12 px-8 text-base" onClick={() => navigate("/auth")}>
+              Get Started Free
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Footer */}
-      <footer className="px-4 py-8 border-t border-border/50">
+      <motion.footer
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5 }}
+        className="px-4 py-8 border-t border-border/50"
+      >
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="p-1.5 bg-primary rounded-md">
@@ -198,7 +356,7 @@ const Landing = () => {
             © {new Date().getFullYear()} The Cash Book. All rights reserved.
           </p>
         </div>
-      </footer>
+      </motion.footer>
     </div>
   );
 };
