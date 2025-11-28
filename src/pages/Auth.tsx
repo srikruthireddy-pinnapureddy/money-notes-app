@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Invalid email address");
@@ -142,9 +143,7 @@ const Auth = () => {
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/10 via-background to-accent/10 px-6 py-8 safe-top">
         <div className="flex-1 flex flex-col justify-center max-w-md w-full mx-auto">
           <div className="flex items-center gap-3 mb-10 justify-center">
-            <div className="p-3 bg-primary rounded-xl">
-              <BookOpen className="h-7 w-7 text-primary-foreground" />
-            </div>
+            <img src={logo} alt="The Cash Book" className="h-14 w-14 rounded-xl object-cover" />
             <div>
               <h1 className="text-2xl font-bold">The Cash Book</h1>
               <p className="text-muted-foreground text-sm">Smart expense splitting</p>
@@ -190,9 +189,7 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/10 via-background to-accent/10 px-6 py-8 safe-top">
       <div className="flex-1 flex flex-col justify-center max-w-md w-full mx-auto">
         <div className="flex items-center gap-3 mb-10 justify-center">
-          <div className="p-3 bg-primary rounded-xl">
-            <BookOpen className="h-7 w-7 text-primary-foreground" />
-          </div>
+          <img src={logo} alt="The Cash Book" className="h-14 w-14 rounded-xl object-cover" />
           <div>
             <h1 className="text-2xl font-bold">The Cash Book</h1>
             <p className="text-muted-foreground text-sm">Smart expense splitting</p>
