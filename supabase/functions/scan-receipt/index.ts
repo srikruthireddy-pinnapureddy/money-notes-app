@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,36 @@ serve(async (req) => {
   }
 
   try {
+    // Authentication check - verify user is logged in
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("No authorization header provided");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - no authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify the user with Supabase
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error("Authentication failed:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - invalid token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authenticated user:", user.id);
+
     const { image } = await req.json();
     
     if (!image) {
@@ -25,7 +56,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Analyzing receipt image with AI...");
+    console.log("Analyzing receipt image with AI for user:", user.id);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -109,7 +140,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("AI response:", JSON.stringify(data));
+    console.log("AI response for user", user.id, ":", JSON.stringify(data));
 
     // Extract the tool call result
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
@@ -122,7 +153,7 @@ serve(async (req) => {
     }
 
     const receiptData = JSON.parse(toolCall.function.arguments);
-    console.log("Extracted receipt data:", receiptData);
+    console.log("Extracted receipt data for user", user.id, ":", receiptData);
 
     return new Response(
       JSON.stringify(receiptData),
