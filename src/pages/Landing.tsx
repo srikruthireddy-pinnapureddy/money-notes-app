@@ -2,8 +2,16 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Users, Receipt, PieChart, ArrowRight, Wallet, Globe, Shield } from "lucide-react";
+import { BookOpen, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+
+// Feature images
+import featureGroupExpenses from "@/assets/feature-group-expenses.png";
+import featureReceiptScan from "@/assets/feature-receipt-scan.png";
+import featureMultiCurrency from "@/assets/feature-multi-currency.png";
+import featureSettlement from "@/assets/feature-settlement.png";
+import featureCategories from "@/assets/feature-categories.png";
+import featureSecurity from "@/assets/feature-security.png";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -25,46 +33,46 @@ const Landing = () => {
 
   const features = [
     {
-      icon: Users,
+      image: featureGroupExpenses,
       title: "Group Expenses",
       description: "Create groups for trips, roommates, or events and track who owes what effortlessly.",
-      animation: { scale: [1, 1.1, 1], transition: { duration: 0.5, repeat: Infinity, repeatDelay: 2 } },
-      hoverAnimation: { scale: 1.2, rotate: [0, -10, 10, 0] },
+      animation: { scale: [1, 1.05, 1], transition: { duration: 2, repeat: Infinity } },
+      hoverAnimation: { scale: 1.1, y: -5 },
     },
     {
-      icon: Receipt,
+      image: featureReceiptScan,
       title: "Smart Receipt Scanning",
       description: "Snap a photo of your receipt and let AI automatically extract the details.",
-      animation: { y: [0, -3, 0], transition: { duration: 1.5, repeat: Infinity, repeatDelay: 1 } },
-      hoverAnimation: { scale: 1.15, y: -5 },
+      animation: { y: [0, -8, 0], transition: { duration: 2, repeat: Infinity } },
+      hoverAnimation: { scale: 1.1, rotate: 5 },
     },
     {
-      icon: Globe,
+      image: featureMultiCurrency,
       title: "Multi-Currency Support",
       description: "Travel abroad? Handle expenses in any currency with automatic conversion.",
-      animation: { rotate: [0, 360], transition: { duration: 8, repeat: Infinity } },
-      hoverAnimation: { scale: 1.2 },
+      animation: { rotate: [0, 5, -5, 0], transition: { duration: 4, repeat: Infinity } },
+      hoverAnimation: { scale: 1.1 },
     },
     {
-      icon: PieChart,
+      image: featureSettlement,
       title: "Settlement Optimization",
       description: "Minimize the number of transactions needed to settle up within your group.",
-      animation: { rotate: [0, 15, -15, 0], transition: { duration: 3, repeat: Infinity, repeatDelay: 1 } },
-      hoverAnimation: { scale: 1.2, rotate: 180 },
+      animation: { scale: [1, 1.03, 1], transition: { duration: 1.5, repeat: Infinity } },
+      hoverAnimation: { scale: 1.1, y: -5 },
     },
     {
-      icon: Wallet,
+      image: featureCategories,
       title: "Expense Categories",
       description: "Organize expenses by category and gain insights into your spending patterns.",
-      animation: { scale: [1, 1.05, 1], transition: { duration: 2, repeat: Infinity } },
-      hoverAnimation: { scale: 1.15, y: -3 },
+      animation: { rotate: [0, 3, -3, 0], transition: { duration: 3, repeat: Infinity } },
+      hoverAnimation: { scale: 1.1 },
     },
     {
-      icon: Shield,
+      image: featureSecurity,
       title: "Secure & Private",
       description: "Your financial data is encrypted and only visible to your group members.",
-      animation: { opacity: [1, 0.7, 1], transition: { duration: 2, repeat: Infinity } },
-      hoverAnimation: { scale: 1.2, rotate: 5 },
+      animation: { scale: [1, 1.08, 1], opacity: [1, 0.8, 1], transition: { duration: 2, repeat: Infinity } },
+      hoverAnimation: { scale: 1.15 },
     },
   ];
 
@@ -255,9 +263,13 @@ const Landing = () => {
                   animate={feature.animation}
                   whileHover={feature.hoverAnimation}
                   transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                  className="p-3 bg-primary/10 rounded-lg w-fit mb-4"
+                  className="mb-4 flex justify-center"
                 >
-                  <feature.icon className="h-6 w-6 text-primary" />
+                  <img 
+                    src={feature.image} 
+                    alt={feature.title} 
+                    className="w-32 h-32 object-contain"
+                  />
                 </motion.div>
                 <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
                 <p className="text-muted-foreground">{feature.description}</p>
