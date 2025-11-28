@@ -2,8 +2,11 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { BookOpen, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+
+// Logo
+import logo from "@/assets/logo.png";
 
 // Feature images
 import featureGroupExpenses from "@/assets/feature-group-expenses.png";
@@ -134,9 +137,7 @@ const Landing = () => {
             whileHover={{ scale: 1.02 }}
             transition={{ type: "spring", stiffness: 400, damping: 10 }}
           >
-            <div className="p-2 bg-primary rounded-lg">
-              <BookOpen className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <img src={logo} alt="The Cash Book" className="h-10 w-10 rounded-lg object-cover" />
             <span className="text-lg font-bold">The Cash Book</span>
           </motion.div>
           <div className="flex items-center gap-3">
@@ -371,9 +372,7 @@ const Landing = () => {
       >
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-primary rounded-md">
-              <BookOpen className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <img src={logo} alt="The Cash Book" className="h-8 w-8 rounded-md object-cover" />
             <span className="font-semibold">The Cash Book</span>
           </div>
           <p className="text-sm text-muted-foreground">
