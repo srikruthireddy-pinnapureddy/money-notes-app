@@ -149,8 +149,8 @@ const JoinGroup = () => {
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
         <Card className="w-full max-w-md p-8 text-center">
           <div className="flex items-center gap-3 mb-6 justify-center">
-            <img src={logo} alt="The Cash Book" className="h-12 w-12 rounded-xl object-cover" />
-            <h1 className="text-2xl font-bold">The Cash Book</h1>
+            <img src={logo} alt="ExpenX" className="h-12 w-12 rounded-xl object-cover" />
+            <h1 className="text-2xl font-bold">ExpenX</h1>
           </div>
           <Users className="h-16 w-16 text-primary mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">You're Invited!</h2>
@@ -194,8 +194,8 @@ const JoinGroup = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8">
         <div className="flex items-center gap-3 mb-6 justify-center">
-          <img src={logo} alt="The Cash Book" className="h-12 w-12 rounded-xl object-cover" />
-          <h1 className="text-2xl font-bold">The Cash Book</h1>
+          <img src={logo} alt="ExpenX" className="h-12 w-12 rounded-xl object-cover" />
+          <h1 className="text-2xl font-bold">ExpenX</h1>
         </div>
 
         <div className="text-center mb-6">

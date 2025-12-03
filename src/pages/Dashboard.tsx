@@ -84,7 +84,7 @@ const Dashboard = () => {
       <header className="border-b bg-background/95 backdrop-blur-sm sticky top-0 z-10 safe-top">
         <div className="px-4 py-4 flex items-center justify-between">
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold">The Cash Book</h1>
+            <h1 className="text-xl font-bold">ExpenX</h1>
             <p className="text-sm text-muted-foreground truncate">
               {session?.user?.email || session?.user?.phone}
             </p>

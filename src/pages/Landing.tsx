@@ -137,8 +137,8 @@ const Landing = () => {
             whileHover={{ scale: 1.02 }}
             transition={{ type: "spring", stiffness: 400, damping: 10 }}
           >
-            <img src={logo} alt="The Cash Book" className="h-10 w-10 rounded-lg object-cover" />
-            <span className="text-lg font-bold">The Cash Book</span>
+            <img src={logo} alt="ExpenX" className="h-10 w-10 rounded-lg object-cover" />
+            <span className="text-lg font-bold">ExpenX</span>
           </motion.div>
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
@@ -200,7 +200,7 @@ const Landing = () => {
             transition={{ duration: 0.6, delay: 0.5 }}
             className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
           >
-            The Cash Book makes it easy to track shared expenses, split bills fairly, and settle up — 
+            ExpenX makes it easy to track shared expenses, split bills fairly, and settle up — 
             so you can focus on making memories, not doing math.
           </motion.p>
           <motion.div
@@ -238,7 +238,7 @@ const Landing = () => {
               Everything you need to manage group expenses
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              From weekend trips to shared apartments, The Cash Book has you covered.
+              From weekend trips to shared apartments, ExpenX has you covered.
             </p>
           </motion.div>
           <motion.div
@@ -372,11 +372,11 @@ const Landing = () => {
       >
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src={logo} alt="The Cash Book" className="h-8 w-8 rounded-md object-cover" />
-            <span className="font-semibold">The Cash Book</span>
+            <img src={logo} alt="ExpenX" className="h-8 w-8 rounded-md object-cover" />
+            <span className="font-semibold">ExpenX</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} The Cash Book. All rights reserved.
+            © {new Date().getFullYear()} ExpenX. All rights reserved.
           </p>
         </div>
       </motion.footer>
