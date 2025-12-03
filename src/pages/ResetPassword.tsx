@@ -73,9 +73,9 @@ const ResetPassword = () => {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/10 via-background to-accent/10 px-6 py-8 safe-top">
       <div className="flex-1 flex flex-col justify-center max-w-md w-full mx-auto">
         <div className="flex items-center gap-3 mb-10 justify-center">
-          <img src={logo} alt="The Cash Book" className="h-14 w-14 rounded-xl object-cover" />
+          <img src={logo} alt="ExpenX" className="h-14 w-14 rounded-xl object-cover" />
           <div>
-            <h1 className="text-2xl font-bold">The Cash Book</h1>
+            <h1 className="text-2xl font-bold">ExpenX</h1>
             <p className="text-muted-foreground text-sm">Smart expense splitting</p>
           </div>
         </div>
