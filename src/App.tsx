@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import JoinGroup from "./pages/JoinGroup";
 import GroupDetail from "./pages/GroupDetail";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/group/:id" element={<GroupDetail />} />
           <Route path="/join/:code" element={<JoinGroup />} />
+          <Route path="/install" element={<Install />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
