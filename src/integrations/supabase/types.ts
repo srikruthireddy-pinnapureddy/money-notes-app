@@ -343,6 +343,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_group_member_profiles: {
+        Args: { group_id_param: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

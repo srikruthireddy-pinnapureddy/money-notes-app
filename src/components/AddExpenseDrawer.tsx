@@ -29,9 +29,8 @@ import { z } from "zod";
 type Member = {
   id: string;
   user_id: string;
-  profiles: {
-    display_name: string;
-  };
+  display_name: string;
+  avatar_url: string | null;
 };
 
 interface AddExpenseDrawerProps {
@@ -445,7 +444,7 @@ export function AddExpenseDrawer({
                     htmlFor={member.user_id}
                     className="text-base font-normal flex-1 cursor-pointer"
                   >
-                    {member.profiles.display_name}
+                    {member.display_name}
                   </Label>
                   {selectedMembers.has(member.user_id) && amount && (
                     <span className="text-sm text-muted-foreground">
@@ -491,7 +490,7 @@ export function AddExpenseDrawer({
                     return (
                       <div key={userId} className="space-y-2">
                         <Label className="text-sm">
-                          {member.profiles.display_name}
+                          {member.display_name}
                         </Label>
                         <div className="flex items-center gap-2">
                           <Input

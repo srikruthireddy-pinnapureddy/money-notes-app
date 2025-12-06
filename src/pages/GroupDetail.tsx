@@ -33,10 +33,8 @@ type Member = {
   id: string;
   user_id: string;
   role: string;
-  profiles: {
-    display_name: string;
-    phone_number: string;
-  };
+  display_name: string;
+  avatar_url: string | null;
 };
 
 type Expense = {
@@ -103,17 +101,33 @@ const GroupDetail = () => {
       if (groupError) throw groupError;
       setGroup(groupData);
 
-      // Fetch members
-      const { data: membersData, error: membersError } = await supabase
+      // Fetch members using secure function (doesn't expose phone numbers)
+      const { data: memberProfiles, error: profilesError } = await supabase
+        .rpc('get_group_member_profiles', { group_id_param: id });
+
+      if (profilesError) throw profilesError;
+
+      // Fetch member roles from group_members
+      const { data: memberRoles, error: rolesError } = await supabase
         .from("group_members")
-        .select(`
-          *,
-          profiles(display_name, phone_number)
-        `)
+        .select("id, user_id, role")
         .eq("group_id", id);
 
-      if (membersError) throw membersError;
-      setMembers(membersData || []);
+      if (rolesError) throw rolesError;
+
+      // Combine member profiles with their roles
+      const membersData = (memberRoles || []).map(role => {
+        const profile = memberProfiles?.find(p => p.id === role.user_id);
+        return {
+          id: role.id,
+          user_id: role.user_id,
+          role: role.role || 'member',
+          display_name: profile?.display_name || 'Unknown',
+          avatar_url: profile?.avatar_url || null,
+        };
+      });
+
+      setMembers(membersData);
 
       // Fetch expenses
       const { data: expensesData, error: expensesError } = await supabase
@@ -149,7 +163,7 @@ const GroupDetail = () => {
     // Initialize balances for all members
     membersList.forEach((member) => {
       balanceMap.set(member.user_id, {
-        display_name: member.profiles.display_name,
+        display_name: member.display_name,
         balance: 0,
       });
     });
@@ -299,10 +313,7 @@ const GroupDetail = () => {
               <div key={member.id} className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">
-                    {member.profiles.display_name}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {member.profiles.phone_number}
+                    {member.display_name}
                   </p>
                 </div>
                 <Badge variant="secondary" className="text-xs">
