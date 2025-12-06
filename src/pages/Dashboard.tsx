@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Users, Loader2, LogOut, Download } from "lucide-react";
+import { Plus, Users, Loader2, LogOut } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { GroupCard } from "@/components/GroupCard";
@@ -90,9 +90,6 @@ const Dashboard = () => {
             </p>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/install")}>
-              <Download className="h-5 w-5" />
-            </Button>
             <Button variant="ghost" size="icon" onClick={handleSignOut}>
               <LogOut className="h-5 w-5" />
             </Button>

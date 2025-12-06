@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Download } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
 // Logo
@@ -141,15 +141,6 @@ const Landing = () => {
             <span className="text-lg font-bold">ExpenX</span>
           </motion.div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button variant="outline" size="sm" onClick={() => navigate("/install")} className="hidden sm:flex">
-                <Download className="mr-2 h-4 w-4" />
-                Install App
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => navigate("/install")} className="sm:hidden">
-                <Download className="h-4 w-4" />
-              </Button>
-            </motion.div>
             {isAuthenticated ? (
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button onClick={() => navigate("/dashboard")}>
