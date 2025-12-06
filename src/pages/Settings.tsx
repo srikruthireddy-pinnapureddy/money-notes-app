@@ -9,6 +9,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, User, Mail, Phone, Save } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
+import { z } from "zod";
+
+const profileSchema = z.object({
+  displayName: z.string().trim().max(50, "Display name must be 50 characters or less").optional(),
+  avatarUrl: z.string().trim()
+    .refine((val) => !val || val.startsWith("https://"), "Avatar URL must use HTTPS")
+    .refine((val) => !val || /^https:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(val) || /^https:\/\/(i\.imgur\.com|avatars\.githubusercontent\.com|lh3\.googleusercontent\.com|gravatar\.com|cloudinary\.com|res\.cloudinary\.com|images\.unsplash\.com)/.test(val), "Avatar URL must be a valid image URL")
+    .optional(),
+});
 
 interface Profile {
   id: string;
@@ -75,6 +84,22 @@ const Settings = () => {
 
   const handleSave = async () => {
     if (!session?.user?.id) return;
+
+    // Validate input
+    const validationResult = profileSchema.safeParse({
+      displayName: displayName || undefined,
+      avatarUrl: avatarUrl || undefined,
+    });
+
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors[0]?.message || "Invalid input";
+      toast({
+        title: "Validation Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSaving(true);
     try {
