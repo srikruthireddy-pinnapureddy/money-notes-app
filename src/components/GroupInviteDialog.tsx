@@ -40,8 +40,10 @@ export function GroupInviteDialog({
   const generateInviteCode = async () => {
     setLoading(true);
     try {
-      // Generate random 8-character code
-      const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+      // Generate secure 16-character code using crypto for better randomness
+      const array = new Uint8Array(12);
+      crypto.getRandomValues(array);
+      const code = Array.from(array, byte => byte.toString(36).padStart(2, '0')).join('').substring(0, 16).toUpperCase();
       
       const { error } = await supabase
         .from("group_invites")
@@ -49,6 +51,7 @@ export function GroupInviteDialog({
           group_id: groupId,
           code: code,
           created_by: (await supabase.auth.getUser()).data.user?.id,
+          max_uses: 50, // Set reasonable limit to prevent abuse
         });
 
       if (error) throw error;
