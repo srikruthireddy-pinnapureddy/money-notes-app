@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, Send, Loader2, Paperclip, FileText, X, Reply, CornerDownRight, Check, CheckCheck } from "lucide-react";
+import { MessageCircle, Send, Loader2, Paperclip, FileText, X, Reply, CornerDownRight, Check, CheckCheck, Pencil, Trash2, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -28,6 +29,7 @@ type Message = {
   file_url?: string | null;
   file_type?: string | null;
   reply_to_id?: string | null;
+  edited_at?: string | null;
   profiles?: {
     display_name: string;
   };
@@ -58,6 +60,8 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [readReceipts, setReadReceipts] = useState<Record<string, ReadReceipt[]>>({});
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [editContent, setEditContent] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -463,6 +467,76 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
     return <CheckCheck className="h-3 w-3 text-muted-foreground" />;
   };
 
+  const handleEdit = (message: Message) => {
+    setEditingMessage(message);
+    setEditContent(message.content);
+  };
+
+  const cancelEdit = () => {
+    setEditingMessage(null);
+    setEditContent("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingMessage || !editContent.trim()) return;
+    
+    if (editContent.length > MAX_MESSAGE_LENGTH) {
+      toast({
+        title: "Message too long",
+        description: `Maximum message length is ${MAX_MESSAGE_LENGTH} characters`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("group_messages")
+        .update({ 
+          content: editContent.trim(),
+          edited_at: new Date().toISOString()
+        })
+        .eq("id", editingMessage.id);
+
+      if (error) throw error;
+
+      setMessages(prev => prev.map(m => 
+        m.id === editingMessage.id 
+          ? { ...m, content: editContent.trim(), edited_at: new Date().toISOString() }
+          : m
+      ));
+      
+      cancelEdit();
+      toast({ title: "Message updated" });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update message",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from("group_messages")
+        .delete()
+        .eq("id", messageId);
+
+      if (error) throw error;
+
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      toast({ title: "Message deleted" });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete message",
+        variant: "destructive",
+      });
+    }
+  };
+
   const AttachmentRenderer = ({ message }: { message: Message }) => {
     const [url, setUrl] = useState<string | null>(null);
     
@@ -586,16 +660,45 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
                           {message.file_url && message.file_type !== "image" && (
                             <p className="text-sm break-words">{message.content}</p>
                           )}
+                          {message.edited_at && (
+                            <span className="text-[10px] opacity-60 italic ml-1">(edited)</span>
+                          )}
                           <AttachmentRenderer message={message} />
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleReply(message)}
-                        >
-                          <Reply className="h-3 w-3" />
-                        </Button>
+                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => handleReply(message)}
+                          >
+                            <Reply className="h-3 w-3" />
+                          </Button>
+                          {isOwn && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                  <MoreVertical className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align={isOwn ? "end" : "start"}>
+                                {!message.file_url && (
+                                  <DropdownMenuItem onClick={() => handleEdit(message)}>
+                                    <Pencil className="h-3 w-3 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem 
+                                  onClick={() => handleDelete(message.id)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-3 w-3 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
                       </div>
                       <div className={`flex items-center gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
                         <span className="text-xs text-muted-foreground">
@@ -632,6 +735,36 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
                   ? `${typingUsers[0].display_name} and ${typingUsers[1].display_name} are typing...`
                   : `${typingUsers[0].display_name} and ${typingUsers.length - 1} others are typing...`}
               </span>
+            </div>
+          )}
+
+          {/* Edit Message */}
+          {editingMessage && (
+            <div className="mt-4 p-2 bg-muted/50 border-l-2 border-yellow-500 rounded-r-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Pencil className="h-4 w-4 text-yellow-500 flex-shrink-0" />
+                <span className="text-xs font-medium">Editing message</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={cancelEdit}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      saveEdit();
+                    }
+                  }}
+                  className="flex-1"
+                  autoFocus
+                />
+                <Button size="sm" onClick={saveEdit} disabled={!editContent.trim()}>
+                  Save
+                </Button>
+              </div>
             </div>
           )}
 
