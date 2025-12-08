@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, Send, Loader2, Paperclip, Image, FileText, X } from "lucide-react";
+import { MessageCircle, Send, Loader2, Paperclip, FileText, X, Reply, CornerDownRight } from "lucide-react";
 import { format } from "date-fns";
 
 type Message = {
@@ -15,6 +15,7 @@ type Message = {
   created_at: string;
   file_url?: string | null;
   file_type?: string | null;
+  reply_to_id?: string | null;
   profiles?: {
     display_name: string;
   };
@@ -42,8 +43,10 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -68,6 +71,12 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
       setFilePreview(null);
     }
   }, [selectedFile]);
+
+  useEffect(() => {
+    if (replyingTo && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [replyingTo]);
 
   const fetchMessages = async () => {
     try {
@@ -124,7 +133,6 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
 
     if (uploadError) throw uploadError;
 
-    // Use signed URL for private bucket (1 hour expiry)
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from("chat-attachments")
       .createSignedUrl(filePath, 3600);
@@ -143,7 +151,6 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
   const handleSend = async () => {
     if (!newMessage.trim() && !selectedFile) return;
     
-    // Validate message length
     if (newMessage.length > MAX_MESSAGE_LENGTH) {
       toast({
         title: "Message too long",
@@ -167,8 +174,9 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
         group_id: groupId,
         user_id: currentUserId,
         content: newMessage.trim() || (selectedFile ? selectedFile.name : ""),
-        file_url: fileData?.path || null, // Store path, not signed URL
+        file_url: fileData?.path || null,
         file_type: fileData?.type || null,
+        reply_to_id: replyingTo?.id || null,
       });
 
       if (error) throw error;
@@ -176,6 +184,7 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
       setNewMessage("");
       setSelectedFile(null);
       setFilePreview(null);
+      setReplyingTo(null);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -224,7 +233,6 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
   };
 
   const getSignedUrl = async (filePath: string): Promise<string | null> => {
-    // Return cached URL if available
     if (signedUrls[filePath]) return signedUrls[filePath];
     
     const { data, error } = await supabase.storage
@@ -235,6 +243,19 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
     
     setSignedUrls(prev => ({ ...prev, [filePath]: data.signedUrl }));
     return data.signedUrl;
+  };
+
+  const getReplyMessage = (replyToId: string | null | undefined): Message | undefined => {
+    if (!replyToId) return undefined;
+    return messages.find(m => m.id === replyToId);
+  };
+
+  const handleReply = (message: Message) => {
+    setReplyingTo(message);
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
   };
 
   const AttachmentRenderer = ({ message }: { message: Message }) => {
@@ -272,6 +293,24 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
           {message.content || "Download file"}
         </span>
       </a>
+    );
+  };
+
+  const ReplyPreview = ({ replyToId, isOwn }: { replyToId: string | null | undefined; isOwn: boolean }) => {
+    const replyMessage = getReplyMessage(replyToId);
+    if (!replyMessage) return null;
+
+    const replyAuthor = replyMessage.profiles?.display_name || getMemberName(replyMessage.user_id);
+    const previewText = replyMessage.content?.slice(0, 50) + (replyMessage.content?.length > 50 ? "..." : "") || "Attachment";
+
+    return (
+      <div className={`flex items-start gap-1 mb-1 text-xs ${isOwn ? "opacity-80" : "opacity-70"}`}>
+        <CornerDownRight className="h-3 w-3 mt-0.5 flex-shrink-0" />
+        <div className="truncate">
+          <span className="font-medium">{replyAuthor}:</span>{" "}
+          <span className="opacity-80">{previewText}</span>
+        </div>
+      </div>
     );
   };
 
@@ -318,27 +357,40 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
                   return (
                     <div
                       key={message.id}
-                      className={`flex flex-col ${isOwn ? "items-end" : "items-start"}`}
+                      className={`group flex flex-col ${isOwn ? "items-end" : "items-start"}`}
                     >
-                      <div
-                        className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                          isOwn
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        }`}
-                      >
-                        {!isOwn && (
-                          <p className="text-xs font-medium mb-1 opacity-70">
-                            {message.profiles?.display_name || getMemberName(message.user_id)}
-                          </p>
-                        )}
-                        {message.content && !message.file_url && (
-                          <p className="text-sm break-words">{message.content}</p>
-                        )}
-                        {message.file_url && message.file_type !== "image" && (
-                          <p className="text-sm break-words">{message.content}</p>
-                        )}
-                        <AttachmentRenderer message={message} />
+                      <div className={`flex items-center gap-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+                        <div
+                          className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                            isOwn
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted"
+                          }`}
+                        >
+                          {message.reply_to_id && (
+                            <ReplyPreview replyToId={message.reply_to_id} isOwn={isOwn} />
+                          )}
+                          {!isOwn && (
+                            <p className="text-xs font-medium mb-1 opacity-70">
+                              {message.profiles?.display_name || getMemberName(message.user_id)}
+                            </p>
+                          )}
+                          {message.content && !message.file_url && (
+                            <p className="text-sm break-words">{message.content}</p>
+                          )}
+                          {message.file_url && message.file_type !== "image" && (
+                            <p className="text-sm break-words">{message.content}</p>
+                          )}
+                          <AttachmentRenderer message={message} />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleReply(message)}
+                        >
+                          <Reply className="h-3 w-3" />
+                        </Button>
                       </div>
                       <span className="text-xs text-muted-foreground mt-1">
                         {format(new Date(message.created_at), "HH:mm")}
@@ -349,6 +401,24 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
               </div>
             )}
           </ScrollArea>
+
+          {/* Reply Preview */}
+          {replyingTo && (
+            <div className="mt-4 p-2 bg-muted/50 border-l-2 border-primary rounded-r-lg flex items-center gap-2">
+              <Reply className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium">
+                  Replying to {replyingTo.profiles?.display_name || getMemberName(replyingTo.user_id)}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {replyingTo.content?.slice(0, 60) || "Attachment"}
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelReply}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
 
           {/* File Preview */}
           {selectedFile && (
@@ -389,7 +459,8 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
               <Paperclip className="h-4 w-4" />
             </Button>
             <Input
-              placeholder="Type a message..."
+              ref={inputRef}
+              placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
