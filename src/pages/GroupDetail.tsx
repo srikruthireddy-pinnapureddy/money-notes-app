@@ -21,6 +21,7 @@ import { SettlementsSection } from "@/components/SettlementsSection";
 import { EditExpenseDrawer } from "@/components/EditExpenseDrawer";
 import { DeleteExpenseDialog } from "@/components/DeleteExpenseDialog";
 import { ActiveInvitesSection } from "@/components/ActiveInvitesSection";
+import { GroupChat } from "@/components/GroupChat";
 
 type Group = {
   id: string;
@@ -330,6 +331,13 @@ const GroupDetail = () => {
             ))}
           </div>
         </Card>
+
+        {/* Group Chat */}
+        <GroupChat
+          groupId={id!}
+          currentUserId={currentUserId!}
+          members={members}
+        />
 
         {/* Expenses List */}
         <div>
