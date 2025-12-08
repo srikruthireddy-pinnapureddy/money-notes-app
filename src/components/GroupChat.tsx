@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { MessageCircle, Send, Loader2, Paperclip, FileText, X, Reply, CornerDownRight } from "lucide-react";
 import { format } from "date-fns";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+
+type TypingUser = {
+  user_id: string;
+  display_name: string;
+};
 
 type Message = {
   id: string;
@@ -44,17 +50,90 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
   const [uploading, setUploading] = useState(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const presenceChannelRef = useRef<RealtimeChannel | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       fetchMessages();
-      const cleanup = subscribeToMessages();
-      return cleanup;
+      const cleanupMessages = subscribeToMessages();
+      const cleanupPresence = subscribeToPresence();
+      return () => {
+        cleanupMessages();
+        cleanupPresence();
+      };
     }
   }, [groupId, isOpen]);
+
+  const subscribeToPresence = () => {
+    const currentMember = members.find(m => m.user_id === currentUserId);
+    const channel = supabase.channel(`typing-${groupId}`);
+    
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const typing: TypingUser[] = [];
+        
+        Object.values(state).forEach((presences: any[]) => {
+          presences.forEach((presence) => {
+            if (presence.user_id !== currentUserId && presence.is_typing) {
+              typing.push({
+                user_id: presence.user_id,
+                display_name: presence.display_name,
+              });
+            }
+          });
+        });
+        
+        setTypingUsers(typing);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            user_id: currentUserId,
+            display_name: currentMember?.display_name || 'Unknown',
+            is_typing: false,
+          });
+        }
+      });
+
+    presenceChannelRef.current = channel;
+
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      supabase.removeChannel(channel);
+      presenceChannelRef.current = null;
+    };
+  };
+
+  const updateTypingStatus = useCallback((isTyping: boolean) => {
+    const currentMember = members.find(m => m.user_id === currentUserId);
+    if (presenceChannelRef.current) {
+      presenceChannelRef.current.track({
+        user_id: currentUserId,
+        display_name: currentMember?.display_name || 'Unknown',
+        is_typing: isTyping,
+      });
+    }
+  }, [currentUserId, members]);
+
+  const handleTyping = useCallback(() => {
+    updateTypingStatus(true);
+    
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      updateTypingStatus(false);
+    }, 2000);
+  }, [updateTypingStatus]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -185,6 +264,7 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
       setSelectedFile(null);
       setFilePreview(null);
       setReplyingTo(null);
+      updateTypingStatus(false);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -402,6 +482,24 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
             )}
           </ScrollArea>
 
+          {/* Typing Indicator */}
+          {typingUsers.length > 0 && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex gap-1">
+                <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+              <span>
+                {typingUsers.length === 1
+                  ? `${typingUsers[0].display_name} is typing...`
+                  : typingUsers.length === 2
+                  ? `${typingUsers[0].display_name} and ${typingUsers[1].display_name} are typing...`
+                  : `${typingUsers[0].display_name} and ${typingUsers.length - 1} others are typing...`}
+              </span>
+            </div>
+          )}
+
           {/* Reply Preview */}
           {replyingTo && (
             <div className="mt-4 p-2 bg-muted/50 border-l-2 border-primary rounded-r-lg flex items-center gap-2">
@@ -462,7 +560,10 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
               ref={inputRef}
               placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                if (e.target.value) handleTyping();
+              }}
               onKeyPress={handleKeyPress}
               disabled={sending}
               className="flex-1"
