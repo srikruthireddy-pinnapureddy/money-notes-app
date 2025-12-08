@@ -5,13 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, Send, Loader2, Paperclip, FileText, X, Reply, CornerDownRight } from "lucide-react";
+import { MessageCircle, Send, Loader2, Paperclip, FileText, X, Reply, CornerDownRight, Check, CheckCheck } from "lucide-react";
 import { format } from "date-fns";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type TypingUser = {
   user_id: string;
   display_name: string;
+};
+
+type ReadReceipt = {
+  message_id: string;
+  user_id: string;
+  read_at: string;
 };
 
 type Message = {
@@ -51,20 +57,24 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const [readReceipts, setReadReceipts] = useState<Record<string, ReadReceipt[]>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasMarkedReadRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (isOpen) {
       fetchMessages();
       const cleanupMessages = subscribeToMessages();
       const cleanupPresence = subscribeToPresence();
+      const cleanupReadReceipts = subscribeToReadReceipts();
       return () => {
         cleanupMessages();
         cleanupPresence();
+        cleanupReadReceipts();
       };
     }
   }, [groupId, isOpen]);
@@ -168,11 +178,92 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
 
       if (error) throw error;
       setMessages(data || []);
+      
+      // Fetch read receipts and mark messages as read
+      const messageIds = (data || []).map((m: Message) => m.id);
+      if (messageIds.length > 0) {
+        fetchReadReceipts(messageIds);
+        // Mark other users' messages as read
+        const otherUserMessages = (data || [])
+          .filter((m: Message) => m.user_id !== currentUserId)
+          .map((m: Message) => m.id);
+        markMessagesAsRead(otherUserMessages);
+      }
     } catch (error: any) {
       console.error("Failed to fetch messages:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchReadReceipts = async (messageIds: string[]) => {
+    if (messageIds.length === 0) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("message_reads")
+        .select("*")
+        .in("message_id", messageIds);
+
+      if (error) throw error;
+
+      const receiptsByMessage: Record<string, ReadReceipt[]> = {};
+      (data || []).forEach((receipt: ReadReceipt) => {
+        if (!receiptsByMessage[receipt.message_id]) {
+          receiptsByMessage[receipt.message_id] = [];
+        }
+        receiptsByMessage[receipt.message_id].push(receipt);
+      });
+      
+      setReadReceipts(prev => ({ ...prev, ...receiptsByMessage }));
+    } catch (error) {
+      console.error("Failed to fetch read receipts:", error);
+    }
+  };
+
+  const markMessagesAsRead = useCallback(async (messageIds: string[]) => {
+    const unreadIds = messageIds.filter(id => !hasMarkedReadRef.current.has(id));
+    if (unreadIds.length === 0) return;
+
+    unreadIds.forEach(id => hasMarkedReadRef.current.add(id));
+
+    try {
+      const inserts = unreadIds.map(messageId => ({
+        message_id: messageId,
+        user_id: currentUserId,
+      }));
+
+      await supabase
+        .from("message_reads")
+        .upsert(inserts, { onConflict: 'message_id,user_id', ignoreDuplicates: true });
+    } catch (error) {
+      console.error("Failed to mark messages as read:", error);
+    }
+  }, [currentUserId]);
+
+  const subscribeToReadReceipts = () => {
+    const channel = supabase
+      .channel(`read-receipts-${groupId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "message_reads",
+        },
+        (payload) => {
+          const receipt = payload.new as ReadReceipt;
+          setReadReceipts(prev => ({
+            ...prev,
+            [receipt.message_id]: [...(prev[receipt.message_id] || []), receipt],
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   };
 
   const subscribeToMessages = () => {
@@ -193,6 +284,11 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
             profiles: { display_name: member?.display_name || "Unknown" }
           } as Message;
           setMessages((prev) => [...prev, newMsg]);
+          
+          // Mark new messages from others as read
+          if (payload.new.user_id !== currentUserId) {
+            markMessagesAsRead([payload.new.id]);
+          }
         }
       )
       .subscribe();
@@ -338,6 +434,35 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
     setReplyingTo(null);
   };
 
+  const ReadReceiptIndicator = ({ 
+    messageId, 
+    receipts, 
+    members: groupMembers,
+    currentUserId: ownUserId 
+  }: { 
+    messageId: string; 
+    receipts: ReadReceipt[]; 
+    members: Member[];
+    currentUserId: string;
+  }) => {
+    // Count how many other users have read this message
+    const readByOthers = receipts.filter(r => r.user_id !== ownUserId);
+    const totalOtherMembers = groupMembers.filter(m => m.user_id !== ownUserId).length;
+    
+    if (readByOthers.length === 0) {
+      // Message sent but not read by anyone
+      return <Check className="h-3 w-3 text-muted-foreground" />;
+    }
+    
+    if (readByOthers.length >= totalOtherMembers) {
+      // Read by all members
+      return <CheckCheck className="h-3 w-3 text-primary" />;
+    }
+    
+    // Read by some members
+    return <CheckCheck className="h-3 w-3 text-muted-foreground" />;
+  };
+
   const AttachmentRenderer = ({ message }: { message: Message }) => {
     const [url, setUrl] = useState<string | null>(null);
     
@@ -472,9 +597,19 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
                           <Reply className="h-3 w-3" />
                         </Button>
                       </div>
-                      <span className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(message.created_at), "HH:mm")}
-                      </span>
+                      <div className={`flex items-center gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(message.created_at), "HH:mm")}
+                        </span>
+                        {isOwn && (
+                          <ReadReceiptIndicator 
+                            messageId={message.id} 
+                            receipts={readReceipts[message.id] || []} 
+                            members={members}
+                            currentUserId={currentUserId}
+                          />
+                        )}
+                      </div>
                     </div>
                   );
                 })}
