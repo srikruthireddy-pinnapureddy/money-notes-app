@@ -41,6 +41,7 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,34 +114,50 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
     };
   };
 
-  const uploadFile = async (file: File): Promise<{ url: string; type: string } | null> => {
+  const uploadFile = async (file: File): Promise<{ url: string; type: string; path: string } | null> => {
     const fileExt = file.name.split(".").pop();
-    const fileName = `${currentUserId}/${Date.now()}.${fileExt}`;
+    const filePath = `${currentUserId}/${Date.now()}.${fileExt}`;
     
     const { error: uploadError } = await supabase.storage
       .from("chat-attachments")
-      .upload(fileName, file);
+      .upload(filePath, file);
 
     if (uploadError) throw uploadError;
 
-    const { data: { publicUrl } } = supabase.storage
+    // Use signed URL for private bucket (1 hour expiry)
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from("chat-attachments")
-      .getPublicUrl(fileName);
+      .createSignedUrl(filePath, 3600);
+
+    if (signedUrlError) throw signedUrlError;
 
     return {
-      url: publicUrl,
-      type: file.type.startsWith("image/") ? "image" : "file"
+      url: signedUrlData.signedUrl,
+      type: file.type.startsWith("image/") ? "image" : "file",
+      path: filePath
     };
   };
 
+  const MAX_MESSAGE_LENGTH = 5000;
+
   const handleSend = async () => {
     if (!newMessage.trim() && !selectedFile) return;
+    
+    // Validate message length
+    if (newMessage.length > MAX_MESSAGE_LENGTH) {
+      toast({
+        title: "Message too long",
+        description: `Maximum message length is ${MAX_MESSAGE_LENGTH} characters`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSending(true);
     setUploading(!!selectedFile);
 
     try {
-      let fileData: { url: string; type: string } | null = null;
+      let fileData: { url: string; type: string; path: string } | null = null;
 
       if (selectedFile) {
         fileData = await uploadFile(selectedFile);
@@ -150,7 +167,7 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
         group_id: groupId,
         user_id: currentUserId,
         content: newMessage.trim() || (selectedFile ? selectedFile.name : ""),
-        file_url: fileData?.url || null,
+        file_url: fileData?.path || null, // Store path, not signed URL
         file_type: fileData?.type || null,
       });
 
@@ -206,14 +223,36 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
     return member?.display_name || "Unknown";
   };
 
-  const renderAttachment = (message: Message) => {
-    if (!message.file_url) return null;
+  const getSignedUrl = async (filePath: string): Promise<string | null> => {
+    // Return cached URL if available
+    if (signedUrls[filePath]) return signedUrls[filePath];
+    
+    const { data, error } = await supabase.storage
+      .from("chat-attachments")
+      .createSignedUrl(filePath, 3600);
+    
+    if (error || !data) return null;
+    
+    setSignedUrls(prev => ({ ...prev, [filePath]: data.signedUrl }));
+    return data.signedUrl;
+  };
+
+  const AttachmentRenderer = ({ message }: { message: Message }) => {
+    const [url, setUrl] = useState<string | null>(null);
+    
+    useEffect(() => {
+      if (message.file_url) {
+        getSignedUrl(message.file_url).then(setUrl);
+      }
+    }, [message.file_url]);
+
+    if (!message.file_url || !url) return null;
 
     if (message.file_type === "image") {
       return (
-        <a href={message.file_url} target="_blank" rel="noopener noreferrer">
+        <a href={url} target="_blank" rel="noopener noreferrer">
           <img
-            src={message.file_url}
+            src={url}
             alt="Shared image"
             className="max-w-full max-h-48 rounded-md mt-2 cursor-pointer hover:opacity-90 transition-opacity"
           />
@@ -223,7 +262,7 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
 
     return (
       <a
-        href={message.file_url}
+        href={url}
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-2 mt-2 p-2 bg-background/50 rounded-md hover:bg-background/80 transition-colors"
@@ -299,7 +338,7 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
                         {message.file_url && message.file_type !== "image" && (
                           <p className="text-sm break-words">{message.content}</p>
                         )}
-                        {renderAttachment(message)}
+                        <AttachmentRenderer message={message} />
                       </div>
                       <span className="text-xs text-muted-foreground mt-1">
                         {format(new Date(message.created_at), "HH:mm")}
