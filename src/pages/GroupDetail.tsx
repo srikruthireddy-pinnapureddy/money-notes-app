@@ -20,6 +20,7 @@ import { GroupInviteDialog } from "@/components/GroupInviteDialog";
 import { SettlementsSection } from "@/components/SettlementsSection";
 import { EditExpenseDrawer } from "@/components/EditExpenseDrawer";
 import { DeleteExpenseDialog } from "@/components/DeleteExpenseDialog";
+import { ActiveInvitesSection } from "@/components/ActiveInvitesSection";
 
 type Group = {
   id: string;
@@ -294,6 +295,12 @@ const GroupDetail = () => {
           groupCurrency={group.currency}
           balances={balances}
           onSettled={fetchGroupData}
+        />
+
+        {/* Active Invite Codes - Admin Only */}
+        <ActiveInvitesSection
+          groupId={id!}
+          isAdmin={members.some(m => m.user_id === currentUserId && m.role === 'admin')}
         />
 
         {/* Members */}
