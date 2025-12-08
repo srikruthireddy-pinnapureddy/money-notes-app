@@ -15,111 +15,77 @@ const JoinGroup = () => {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
-  const [groupInfo, setGroupInfo] = useState<any>(null);
   const [error, setError] = useState("");
-  const [joined, setJoined] = useState(false);
 
   useEffect(() => {
-    // Check auth
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session && code) {
-        loadGroupInfo();
-      } else if (!session) {
-        setLoading(false);
-      }
-    });
-  }, [code]);
-
-  const loadGroupInfo = async () => {
-    try {
-      // Get invite details
-      const { data: invite, error: inviteError } = await supabase
-        .from("group_invites")
-        .select(`
-          *,
-          groups (
-            id,
-            name,
-            description,
-            currency
-          )
-        `)
-        .eq("code", code)
-        .gt("expires_at", new Date().toISOString())
-        .single();
-
-      if (inviteError) throw new Error("Invalid or expired invite code");
-
-      // Check if already a member
-      const { data: membership } = await supabase
-        .from("group_members")
-        .select("id")
-        .eq("group_id", invite.groups.id)
-        .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (membership) {
-        setJoined(true);
-      }
-
-      setGroupInfo(invite);
-    } catch (error: any) {
-      setError(error.message || "Failed to load group information");
-    } finally {
       setLoading(false);
-    }
-  };
+    });
+  }, []);
 
   const handleJoin = async () => {
     if (!session) {
+      // Store the invite code and redirect to auth
+      sessionStorage.setItem("pendingInviteCode", code || "");
       navigate("/auth");
+      return;
+    }
+
+    if (!code) {
+      setError("No invite code provided");
       return;
     }
 
     setJoining(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      // Use the secure function to join the group
+      const { data, error: rpcError } = await supabase.rpc("join_group_with_invite", {
+        invite_code: code,
+      });
 
-      // Add user to group
-      const { error: memberError } = await supabase
-        .from("group_members")
-        .insert({
-          group_id: groupInfo.groups.id,
-          user_id: user.id,
-          role: "member",
-        });
+      if (rpcError) throw rpcError;
 
-      if (memberError) throw memberError;
+      const result = data as { success: boolean; error?: string; group_id?: string; message?: string };
 
-      // Update invite uses
-      const { error: updateError } = await supabase
-        .from("group_invites")
-        .update({
-          uses_count: groupInfo.uses_count + 1,
-        })
-        .eq("id", groupInfo.id);
-
-      if (updateError) throw updateError;
+      if (!result.success) {
+        throw new Error(result.error || "Failed to join group");
+      }
 
       toast({
         title: "Success!",
-        description: `You've joined ${groupInfo.groups.name}`,
+        description: result.message || "You've joined the group",
       });
 
-      // Redirect to group
-      navigate(`/group/${groupInfo.groups.id}`);
+      navigate(`/group/${result.group_id}`);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to join group",
-        variant: "destructive",
-      });
+      const errorMessage = error.message || "Failed to join group";
+      
+      if (errorMessage.includes("already a member")) {
+        setError(errorMessage);
+      } else {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        setError(errorMessage);
+      }
     } finally {
       setJoining(false);
     }
   };
+
+  // Auto-join if coming back from auth with pending invite
+  useEffect(() => {
+    if (session && code) {
+      const pendingCode = sessionStorage.getItem("pendingInviteCode");
+      if (pendingCode === code) {
+        sessionStorage.removeItem("pendingInviteCode");
+        handleJoin();
+      }
+    }
+  }, [session, code]);
 
   if (loading) {
     return (
@@ -130,11 +96,18 @@ const JoinGroup = () => {
   }
 
   if (error) {
+    const isAlreadyMember = error.includes("already a member");
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
         <Card className="w-full max-w-md p-8 text-center">
-          <XCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Invalid Invite</h2>
+          {isAlreadyMember ? (
+            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+          ) : (
+            <XCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
+          )}
+          <h2 className="text-2xl font-bold mb-2">
+            {isAlreadyMember ? "Already a Member" : "Unable to Join"}
+          </h2>
           <p className="text-muted-foreground mb-6">{error}</p>
           <Button onClick={() => navigate("/dashboard")} className="w-full">
             Go to Dashboard
@@ -154,36 +127,11 @@ const JoinGroup = () => {
           </div>
           <Users className="h-16 w-16 text-primary mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">You're Invited!</h2>
-          {groupInfo && (
-            <div className="mb-6">
-              <p className="text-lg font-semibold mb-1">{groupInfo.groups.name}</p>
-              {groupInfo.groups.description && (
-                <p className="text-muted-foreground">{groupInfo.groups.description}</p>
-              )}
-            </div>
-          )}
           <p className="text-muted-foreground mb-6">
             Sign in to join this group and start splitting expenses
           </p>
-          <Button onClick={() => navigate("/auth")} className="w-full">
+          <Button onClick={handleJoin} className="w-full">
             Sign In to Join
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
-  if (joined) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md p-8 text-center">
-          <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Already a Member</h2>
-          <p className="text-muted-foreground mb-6">
-            You're already a member of {groupInfo.groups.name}
-          </p>
-          <Button onClick={() => navigate(`/group/${groupInfo.groups.id}`)} className="w-full">
-            Go to Group
           </Button>
         </Card>
       </div>
@@ -201,28 +149,10 @@ const JoinGroup = () => {
         <div className="text-center mb-6">
           <Users className="h-16 w-16 text-primary mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">Join Group</h2>
+          <p className="text-muted-foreground">
+            You've been invited to join a group on ExpenX
+          </p>
         </div>
-
-        {groupInfo && (
-          <div className="space-y-4 mb-6">
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Group Name</p>
-              <p className="text-lg font-semibold">{groupInfo.groups.name}</p>
-            </div>
-
-            {groupInfo.groups.description && (
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Description</p>
-                <p>{groupInfo.groups.description}</p>
-              </div>
-            )}
-
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Currency</p>
-              <p className="font-semibold">{groupInfo.groups.currency}</p>
-            </div>
-          </div>
-        )}
 
         <Button
           onClick={handleJoin}
@@ -230,7 +160,7 @@ const JoinGroup = () => {
           className="w-full"
         >
           {joining && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Join Group
+          {joining ? "Joining..." : "Join Group"}
         </Button>
       </Card>
     </div>

@@ -366,6 +366,7 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
+      join_group_with_invite: { Args: { invite_code: string }; Returns: Json }
       shares_group_with: {
         Args: { _other_user_id: string; _user_id: string }
         Returns: boolean
