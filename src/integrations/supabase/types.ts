@@ -329,6 +329,45 @@ export type Database = {
           },
         ]
       }
+      personal_transactions: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          payment_mode: string | null
+          transaction_date: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_mode?: string | null
+          transaction_date?: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_mode?: string | null
+          transaction_date?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

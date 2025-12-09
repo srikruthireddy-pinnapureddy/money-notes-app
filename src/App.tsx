@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
+import PersonalLedger from "./pages/PersonalLedger";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import JoinGroup from "./pages/JoinGroup";
@@ -24,6 +25,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/ledger" element={<PersonalLedger />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/group/:id" element={<GroupDetail />} />

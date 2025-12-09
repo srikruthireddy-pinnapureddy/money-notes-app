@@ -4,10 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Users, Loader2, Settings } from "lucide-react";
+import { Plus, Users, Loader2, Settings, Wallet, TrendingUp, TrendingDown } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { GroupCard } from "@/components/GroupCard";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { startOfMonth, endOfMonth } from "date-fns";
 type Group = {
   id: string;
   name: string;
@@ -15,15 +17,19 @@ type Group = {
   currency: string;
   created_at: string;
 };
+type PersonalSummary = {
+  totalIncome: number;
+  totalExpense: number;
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState<Group[]>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [personalSummary, setPersonalSummary] = useState<PersonalSummary>({ totalIncome: 0, totalExpense: 0 });
   useEffect(() => {
     const {
       data: {
@@ -35,16 +41,13 @@ const Dashboard = () => {
         navigate("/");
       }
     });
-    supabase.auth.getSession().then(({
-      data: {
-        session
-      }
-    }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (!session) {
         navigate("/");
       } else {
         fetchGroups();
+        fetchPersonalSummary();
       }
       setLoading(false);
     });
@@ -52,23 +55,45 @@ const Dashboard = () => {
   }, [navigate]);
   const fetchGroups = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from("groups").select(`
-          *,
-          group_members!inner(user_id)
-        `).order("created_at", {
-        ascending: false
-      });
+      const { data, error } = await supabase
+        .from("groups")
+        .select(`*, group_members!inner(user_id)`)
+        .order("created_at", { ascending: false });
       if (error) throw error;
       setGroups(data || []);
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to fetch groups",
-        variant: "destructive"
+        variant: "destructive",
       });
+    }
+  };
+
+  const fetchPersonalSummary = async () => {
+    try {
+      const now = new Date();
+      const start = startOfMonth(now);
+      const end = endOfMonth(now);
+
+      const { data, error } = await supabase
+        .from("personal_transactions")
+        .select("type, amount")
+        .gte("transaction_date", start.toISOString())
+        .lte("transaction_date", end.toISOString());
+
+      if (error) throw error;
+
+      const totalIncome = (data || [])
+        .filter((t) => t.type === "income")
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      const totalExpense = (data || [])
+        .filter((t) => t.type === "expense")
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      setPersonalSummary({ totalIncome, totalExpense });
+    } catch (error) {
+      // Silent fail for summary
     }
   };
   if (loading) {
@@ -95,19 +120,62 @@ const Dashboard = () => {
       </header>
 
       <main className="px-4 py-6">
-        <div className="flex gap-3 mb-5">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
-            <span className="text-lg font-semibold">{groups.length}</span>
-            <span className="text-xs text-muted-foreground">Groups</span>
+        {/* Navigation Tabs */}
+        <Tabs defaultValue="groups" className="mb-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger
+              value="ledger"
+              className="flex items-center gap-2"
+              onClick={() => navigate("/ledger")}
+            >
+              <Wallet className="h-4 w-4" />
+              My Ledger
+            </TabsTrigger>
+            <TabsTrigger value="groups" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              My Groups
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Personal Summary Card */}
+        <Card className="p-4 mb-6 bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-muted-foreground">This Month</span>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/ledger")}>
+              View Ledger
+            </Button>
           </div>
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
-            <span className="text-lg font-semibold">{groups.length}</span>
-            <span className="text-xs text-muted-foreground">Active</span>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <div className="flex items-center gap-1 text-emerald-500">
+                <TrendingUp className="h-4 w-4" />
+                <span className="text-xs">Income</span>
+              </div>
+              <p className="font-bold">${personalSummary.totalIncome.toFixed(0)}</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-1 text-rose-500">
+                <TrendingDown className="h-4 w-4" />
+                <span className="text-xs">Expense</span>
+              </div>
+              <p className="font-bold">${personalSummary.totalExpense.toFixed(0)}</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-1">
+                <Wallet className="h-4 w-4" />
+                <span className="text-xs">Net</span>
+              </div>
+              <p className={`font-bold ${personalSummary.totalIncome - personalSummary.totalExpense >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                ${(personalSummary.totalIncome - personalSummary.totalExpense).toFixed(0)}
+              </p>
+            </div>
           </div>
-        </div>
+        </Card>
 
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">Your Groups</h2>
+          <span className="text-sm text-muted-foreground">{groups.length} groups</span>
         </div>
 
         {groups.length === 0 ? (
