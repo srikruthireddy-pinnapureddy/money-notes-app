@@ -222,6 +222,7 @@ export function AddTransactionDrawer({
                     mode="single"
                     selected={date}
                     onSelect={(d) => d && setDate(d)}
+                    disabled={(date) => date > new Date()}
                     initialFocus
                     className="pointer-events-auto"
                   />
