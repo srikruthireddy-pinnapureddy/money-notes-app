@@ -325,7 +325,11 @@ const PersonalLedger = () => {
           setAddDrawerOpen(open);
           if (!open) setEditingTransaction(null);
         }}
-        onTransactionAdded={fetchTransactions}
+        onTransactionAdded={async () => {
+          // Reset to "all" filter temporarily to ensure new transaction is visible
+          setDateRange("all");
+          await fetchTransactions();
+        }}
         editingTransaction={editingTransaction}
         categories={categories}
       />

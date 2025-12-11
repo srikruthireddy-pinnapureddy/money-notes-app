@@ -135,9 +135,9 @@ export function AddTransactionDrawer({
         toast({ title: "Transaction added" });
       }
 
-      onTransactionAdded();
-      onOpenChange(false);
+      await onTransactionAdded();
       resetForm();
+      onOpenChange(false);
     } catch (error: any) {
       toast({
         title: "Error",
