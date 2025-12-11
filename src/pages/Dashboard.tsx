@@ -4,12 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Users, Loader2, Settings, Wallet, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Users, Loader2, Settings, Wallet, TrendingUp, TrendingDown, ScanBarcode } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { GroupCard } from "@/components/GroupCard";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { startOfMonth, endOfMonth } from "date-fns";
+import { BarcodeScanner } from "@/components/BarcodeScanner";
 type Group = {
   id: string;
   name: string;
@@ -30,6 +31,16 @@ const Dashboard = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [personalSummary, setPersonalSummary] = useState<PersonalSummary>({ totalIncome: 0, totalExpense: 0 });
+  const [showScanner, setShowScanner] = useState(false);
+
+  const handleBarcodeScan = (result: string) => {
+    setShowScanner(false);
+    toast({
+      title: "Barcode Scanned",
+      description: `Code: ${result}`,
+    });
+    // You can extend this to lookup product info or auto-fill expense
+  };
   useEffect(() => {
     const {
       data: {
@@ -112,6 +123,9 @@ const Dashboard = () => {
             </p>
           </div>
           <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => setShowScanner(true)}>
+              <ScanBarcode className="h-5 w-5" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate("/settings")}>
               <Settings className="h-5 w-5" />
             </Button>
@@ -211,6 +225,13 @@ const Dashboard = () => {
         onOpenChange={setCreateDialogOpen}
         onGroupCreated={fetchGroups}
       />
+
+      {showScanner && (
+        <BarcodeScanner
+          onScan={handleBarcodeScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 };
