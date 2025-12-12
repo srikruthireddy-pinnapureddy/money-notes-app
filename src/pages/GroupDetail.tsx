@@ -305,14 +305,9 @@ const GroupDetail = () => {
         />
 
         {/* Members - Compact Interactive */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Members</span>
-          </div>
-          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setInviteOpen(true)}>
-            + Invite
-          </Button>
+        <div className="flex items-center gap-2 mb-2">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Members</span>
         </div>
         
         <div className="flex items-center gap-1 flex-wrap">
@@ -345,14 +340,6 @@ const GroupDetail = () => {
               </div>
             </div>
           ))}
-          
-          {/* Add member button */}
-          <button
-            onClick={() => setInviteOpen(true)}
-            className="w-10 h-10 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground/50 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all duration-200"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
         </div>
 
 
