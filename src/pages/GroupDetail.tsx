@@ -21,7 +21,7 @@ import { SettlementsSection } from "@/components/SettlementsSection";
 import { EditExpenseDrawer } from "@/components/EditExpenseDrawer";
 import { DeleteExpenseDialog } from "@/components/DeleteExpenseDialog";
 import { ActiveInvitesSection } from "@/components/ActiveInvitesSection";
-import { GroupChat } from "@/components/GroupChat";
+import { FloatingChat } from "@/components/chat";
 
 type Group = {
   id: string;
@@ -332,12 +332,6 @@ const GroupDetail = () => {
           </div>
         </Card>
 
-        {/* Group Chat */}
-        <GroupChat
-          groupId={id!}
-          currentUserId={currentUserId!}
-          members={members}
-        />
 
         {/* Expenses List */}
         <div>
@@ -422,6 +416,17 @@ const GroupDetail = () => {
           )}
         </div>
       </main>
+
+      {/* Floating Chat */}
+      <FloatingChat
+        groupId={id!}
+        groupName={group.name}
+        groupCurrency={group.currency}
+        currentUserId={currentUserId!}
+        members={members}
+        balances={balances}
+        onExpenseAdded={fetchGroupData}
+      />
 
       {/* Floating Action Button */}
       <div className="fixed bottom-6 right-6 z-20 safe-bottom">
