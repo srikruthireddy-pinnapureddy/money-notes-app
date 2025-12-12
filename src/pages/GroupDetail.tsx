@@ -304,33 +304,56 @@ const GroupDetail = () => {
           isAdmin={members.some(m => m.user_id === currentUserId && m.role === 'admin')}
         />
 
-        {/* Members */}
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Members ({members.length})
-            </h2>
-            <Button variant="ghost" size="sm" onClick={() => setInviteOpen(true)}>
-              + Invite
-            </Button>
+        {/* Members - Compact Interactive */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Members</span>
           </div>
-          
-          <div className="space-y-3">
-            {members.map((member) => (
-              <div key={member.id} className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {member.display_name}
-                  </p>
-                </div>
-                <Badge variant="secondary" className="text-xs">
-                  {member.role}
-                </Badge>
+          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setInviteOpen(true)}>
+            + Invite
+          </Button>
+        </div>
+        
+        <div className="flex items-center gap-1 flex-wrap">
+          {members.map((member, index) => (
+            <div
+              key={member.id}
+              className="group relative"
+              style={{ zIndex: members.length - index }}
+            >
+              <div 
+                className={`
+                  w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold
+                  transition-all duration-200 cursor-pointer
+                  hover:scale-110 hover:z-50 hover:shadow-lg
+                  ${member.role === 'admin' 
+                    ? 'bg-gradient-to-br from-primary to-accent text-primary-foreground ring-2 ring-primary/30' 
+                    : 'bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary'
+                  }
+                `}
+              >
+                {member.display_name?.charAt(0)?.toUpperCase() || '?'}
               </div>
-            ))}
-          </div>
-        </Card>
+              
+              {/* Tooltip on hover */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 border">
+                <span className="font-medium">{member.display_name}</span>
+                {member.role === 'admin' && (
+                  <span className="ml-1 text-primary">• Admin</span>
+                )}
+              </div>
+            </div>
+          ))}
+          
+          {/* Add member button */}
+          <button
+            onClick={() => setInviteOpen(true)}
+            className="w-10 h-10 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground/50 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all duration-200"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
 
 
         {/* Expenses List */}
