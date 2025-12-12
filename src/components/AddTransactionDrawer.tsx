@@ -78,6 +78,7 @@ export function AddTransactionDrawer({
   const [amount, setAmount] = useState("");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentMode, setPaymentMode] = useState("cash");
   const [date, setDate] = useState<Date>(new Date());
@@ -101,6 +102,7 @@ export function AddTransactionDrawer({
     setAmount("");
     setTitle("");
     setCategory("");
+    setCustomCategory("");
     setNotes("");
     setPaymentMode("cash");
     setDate(new Date());
@@ -133,11 +135,14 @@ export function AddTransactionDrawer({
 
       const fullNotes = notes ? `${title}\n${notes}` : title;
 
+      // Use custom category if "Other" is selected
+      const finalCategory = category === "__other__" ? customCategory.trim() : category;
+
       const transactionData = {
         user_id: user.id,
         type,
         amount: Number(amount),
-        category: category || null,
+        category: finalCategory || null,
         notes: fullNotes,
         payment_mode: paymentMode,
         transaction_date: date.toISOString(),
@@ -285,7 +290,12 @@ export function AddTransactionDrawer({
                 <Tag className="h-4 w-4" />
                 Category
               </div>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={(val) => {
+                setCategory(val);
+                if (val !== "__other__") {
+                  setCustomCategory("");
+                }
+              }}>
                 <SelectTrigger className="h-12 border-2 focus:border-primary">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -295,8 +305,34 @@ export function AddTransactionDrawer({
                       {cat}
                     </SelectItem>
                   ))}
+                  <SelectItem value="__other__" className="py-3 border-t mt-1">
+                    <div className="flex items-center gap-2">
+                      <MoreHorizontal className="h-4 w-4" />
+                      Other (Custom)
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
+              
+              {/* Custom Category Input */}
+              <AnimatePresence>
+                {category === "__other__" && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Input
+                      placeholder="Enter custom category..."
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      className="h-12 border-2 focus:border-primary mt-2"
+                      autoFocus
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
 
             {/* Date Picker */}
