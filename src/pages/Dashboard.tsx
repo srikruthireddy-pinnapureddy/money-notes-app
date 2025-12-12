@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import { Session } from "@supabase/supabase-js";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { SpaceSwitcher, GroupSpace, PersonalSpace } from "@/components/spaces";
 import logo from "@/assets/logo.png";
+import { cn } from "@/lib/utils";
 
 type Space = "groups" | "personal";
 
@@ -30,6 +31,28 @@ const Dashboard = () => {
   const [activeSpace, setActiveSpace] = useState<Space>("groups");
   const [direction, setDirection] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isNavbarVisible, setIsNavbarVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  // Handle scroll to show/hide navbar
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollDelta = currentScrollY - lastScrollY.current;
+      
+      // Show navbar when scrolling up, hide when scrolling down
+      if (scrollDelta > 5 && currentScrollY > 60) {
+        setIsNavbarVisible(false);
+      } else if (scrollDelta < -5 || currentScrollY <= 10) {
+        setIsNavbarVisible(true);
+      }
+      
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleBarcodeScan = (result: string) => {
     setShowScanner(false);
@@ -142,8 +165,15 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur-sm sticky top-0 z-10 safe-top">
+      {/* Header - Hides on scroll down, shows on scroll up */}
+      <motion.header 
+        className={cn(
+          "border-b bg-background/95 backdrop-blur-sm fixed top-0 left-0 right-0 z-50 safe-top"
+        )}
+        initial={{ y: 0 }}
+        animate={{ y: isNavbarVisible ? 0 : -80 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      >
         <div className="px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={logo} alt="ExpenX" className="h-9 w-9" />
@@ -163,7 +193,10 @@ const Dashboard = () => {
             </Button>
           </div>
         </div>
-      </header>
+      </motion.header>
+
+      {/* Spacer for fixed header */}
+      <div className="h-[72px]" />
 
       {/* Space Switcher */}
       <div className="px-4 pt-4 pb-2">
