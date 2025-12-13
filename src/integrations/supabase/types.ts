@@ -293,6 +293,101 @@ export type Database = {
           },
         ]
       }
+      investment_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          investment_id: string
+          notes: string | null
+          price_per_unit: number | null
+          transaction_date: string
+          type: string
+          units: number
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          investment_id: string
+          notes?: string | null
+          price_per_unit?: number | null
+          transaction_date?: string
+          type: string
+          units?: number
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          investment_id?: string
+          notes?: string | null
+          price_per_unit?: number | null
+          transaction_date?: string
+          type?: string
+          units?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investment_transactions_investment_id_fkey"
+            columns: ["investment_id"]
+            isOneToOne: false
+            referencedRelation: "investments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investments: {
+        Row: {
+          created_at: string
+          current_value: number
+          id: string
+          invested_amount: number
+          is_active: boolean
+          name: string
+          notes: string | null
+          purchase_date: string
+          symbol: string | null
+          type: string
+          units: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number
+          id?: string
+          invested_amount?: number
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          purchase_date?: string
+          symbol?: string | null
+          type: string
+          units?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_value?: number
+          id?: string
+          invested_amount?: number
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          purchase_date?: string
+          symbol?: string | null
+          type?: string
+          units?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       message_reads: {
         Row: {
           id: string
