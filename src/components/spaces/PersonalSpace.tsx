@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Plus, 
   TrendingUp, 
@@ -11,10 +12,13 @@ import {
   Wallet,
   Filter,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  BarChart3,
+  Receipt
 } from "lucide-react";
 import { AddTransactionDrawer } from "@/components/AddTransactionDrawer";
 import { TransactionCard } from "@/components/TransactionCard";
+import { InvestmentsTab } from "@/components/investments";
 import {
   Select,
   SelectContent,
@@ -36,6 +40,7 @@ type Transaction = {
 };
 
 type DateRange = "today" | "week" | "month" | "all";
+type ActiveTab = "transactions" | "investments";
 
 const categories = [
   "Food & Dining",
@@ -59,6 +64,7 @@ export function PersonalSpace() {
   const [dateRange, setDateRange] = useState<DateRange>("month");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("transactions");
 
   useEffect(() => {
     fetchTransactions();
@@ -148,179 +154,199 @@ export function PersonalSpace() {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4">
-        {/* Main Balance Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-primary via-primary/90 to-accent text-primary-foreground"
-        >
-          <div className="relative z-10">
-            <p className="text-sm opacity-80 mb-1">Net Balance</p>
-            <h2 className="text-4xl font-bold mb-4">
-              ${Math.abs(netBalance).toFixed(2)}
-              {netBalance < 0 && <span className="text-lg ml-1">deficit</span>}
-            </h2>
-            
-            <div className="flex gap-6">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                  <ArrowUpRight className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs opacity-70">Income</p>
-                  <p className="font-semibold">${totalIncome.toFixed(0)}</p>
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ActiveTab)}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="transactions" className="gap-2">
+            <Receipt className="h-4 w-4" />
+            Transactions
+          </TabsTrigger>
+          <TabsTrigger value="investments" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Investments
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="transactions" className="mt-6 space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 gap-4">
+            {/* Main Balance Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-primary via-primary/90 to-accent text-primary-foreground"
+            >
+              <div className="relative z-10">
+                <p className="text-sm opacity-80 mb-1">Net Balance</p>
+                <h2 className="text-4xl font-bold mb-4">
+                  ${Math.abs(netBalance).toFixed(2)}
+                  {netBalance < 0 && <span className="text-lg ml-1">deficit</span>}
+                </h2>
+                
+                <div className="flex gap-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                      <ArrowUpRight className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs opacity-70">Income</p>
+                      <p className="font-semibold">${totalIncome.toFixed(0)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                      <ArrowDownRight className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs opacity-70">Expense</p>
+                      <p className="font-semibold">${totalExpense.toFixed(0)}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                  <ArrowDownRight className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs opacity-70">Expense</p>
-                  <p className="font-semibold">${totalExpense.toFixed(0)}</p>
-                </div>
-              </div>
+              
+              {/* Decorative circles */}
+              <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/10" />
+              <div className="absolute -right-5 -bottom-10 w-32 h-32 rounded-full bg-white/5" />
+            </motion.div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 gap-3">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <Card className="p-4 bg-emerald-500/10 border-emerald-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    <span className="text-xs text-muted-foreground">Total Income</span>
+                  </div>
+                  <p className="text-xl font-bold text-emerald-500">
+                    ${totalIncome.toFixed(2)}
+                  </p>
+                </Card>
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15 }}
+              >
+                <Card className="p-4 bg-rose-500/10 border-rose-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingDown className="h-4 w-4 text-rose-500" />
+                    <span className="text-xs text-muted-foreground">Total Expense</span>
+                  </div>
+                  <p className="text-xl font-bold text-rose-500">
+                    ${totalExpense.toFixed(2)}
+                  </p>
+                </Card>
+              </motion.div>
             </div>
           </div>
-          
-          {/* Decorative circles */}
-          <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/10" />
-          <div className="absolute -right-5 -bottom-10 w-32 h-32 rounded-full bg-white/5" />
-        </motion.div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <Card className="p-4 bg-emerald-500/10 border-emerald-500/20">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
-                <span className="text-xs text-muted-foreground">Total Income</span>
-              </div>
-              <p className="text-xl font-bold text-emerald-500">
-                ${totalIncome.toFixed(2)}
-              </p>
-            </Card>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.15 }}
-          >
-            <Card className="p-4 bg-rose-500/10 border-rose-500/20">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="h-4 w-4 text-rose-500" />
-                <span className="text-xs text-muted-foreground">Total Expense</span>
-              </div>
-              <p className="text-xl font-bold text-rose-500">
-                ${totalExpense.toFixed(2)}
-              </p>
-            </Card>
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="flex gap-2"
-      >
-        <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Date range" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="all">All Time</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="flex-1">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </motion.div>
-
-      {/* Transactions */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Recent Transactions</h3>
-          <span className="text-sm text-muted-foreground">{transactions.length} entries</span>
-        </div>
-
-        {transactions.length === 0 ? (
+          {/* Filters */}
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-12 text-center"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex gap-2"
           >
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <Wallet className="h-8 w-8 text-muted-foreground" />
+            <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Date range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="all">All Time</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="flex-1">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </motion.div>
+
+          {/* Transactions */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold">Recent Transactions</h3>
+              <span className="text-sm text-muted-foreground">{transactions.length} entries</span>
             </div>
-            <h3 className="font-semibold mb-2">No transactions</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Start tracking your finances
-            </p>
-            <Button onClick={() => setAddDrawerOpen(true)} size="sm" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Transaction
+
+            {transactions.length === 0 ? (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center py-12 text-center"
+              >
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Wallet className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold mb-2">No transactions</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Start tracking your finances
+                </p>
+                <Button onClick={() => setAddDrawerOpen(true)} size="sm" className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Transaction
+                </Button>
+              </motion.div>
+            ) : (
+              <div className="space-y-2">
+                {transactions.map((transaction, index) => (
+                  <motion.div
+                    key={transaction.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 + index * 0.03 }}
+                  >
+                    <TransactionCard
+                      transaction={transaction}
+                      onEdit={() => handleEdit(transaction)}
+                      onDelete={() => handleDelete(transaction.id)}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* FAB for Transactions */}
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3, type: "spring" }}
+            className="fixed bottom-6 right-6 z-20 safe-bottom"
+          >
+            <Button
+              size="lg"
+              className="h-14 w-14 rounded-full shadow-2xl"
+              onClick={() => {
+                setEditingTransaction(null);
+                setAddDrawerOpen(true);
+              }}
+            >
+              <Plus className="h-6 w-6" />
             </Button>
           </motion.div>
-        ) : (
-          <div className="space-y-2">
-            {transactions.map((transaction, index) => (
-              <motion.div
-                key={transaction.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 + index * 0.03 }}
-              >
-                <TransactionCard
-                  transaction={transaction}
-                  onEdit={() => handleEdit(transaction)}
-                  onDelete={() => handleDelete(transaction.id)}
-                />
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
+        </TabsContent>
 
-      {/* FAB */}
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.3, type: "spring" }}
-        className="fixed bottom-6 right-6 z-20 safe-bottom"
-      >
-        <Button
-          size="lg"
-          className="h-14 w-14 rounded-full shadow-2xl"
-          onClick={() => {
-            setEditingTransaction(null);
-            setAddDrawerOpen(true);
-          }}
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
-      </motion.div>
+        <TabsContent value="investments" className="mt-6">
+          <InvestmentsTab />
+        </TabsContent>
+      </Tabs>
 
       <AddTransactionDrawer
         open={addDrawerOpen}
