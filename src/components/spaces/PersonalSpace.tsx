@@ -168,22 +168,22 @@ export function PersonalSpace() {
         </TabsList>
 
         <TabsContent value="transactions" className="mt-6 space-y-6">
-      {/* Compact Summary */}
+        {/* Compact Summary */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-primary via-primary/90 to-accent text-primary-foreground"
+            className="relative overflow-hidden rounded-xl p-3 bg-gradient-to-br from-primary via-primary/90 to-accent text-primary-foreground"
           >
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs opacity-80">Net Balance</p>
-                <div className="flex gap-3 text-xs">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm opacity-80">Net Balance</p>
+                <div className="flex gap-3 text-sm">
                   <span className="flex items-center gap-1 opacity-80">
-                    <ArrowUpRight className="h-3 w-3" />
+                    <ArrowUpRight className="h-3.5 w-3.5" />
                     ${totalIncome.toFixed(0)}
                   </span>
                   <span className="flex items-center gap-1 opacity-80">
-                    <ArrowDownRight className="h-3 w-3" />
+                    <ArrowDownRight className="h-3.5 w-3.5" />
                     ${totalExpense.toFixed(0)}
                   </span>
                 </div>
@@ -193,7 +193,7 @@ export function PersonalSpace() {
                 {netBalance < 0 && <span className="text-sm ml-1 opacity-80">deficit</span>}
               </h2>
             </div>
-            <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-white/10" />
+            <div className="absolute -right-4 -top-4 w-16 h-16 rounded-full bg-white/10" />
           </motion.div>
 
           {/* Compact Stats Row */}
@@ -202,11 +202,11 @@ export function PersonalSpace() {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20"
             >
               <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />
               <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Income</p>
+                <p className="text-xs text-muted-foreground">Income</p>
                 <p className="text-sm font-bold text-emerald-500 truncate">${totalIncome.toFixed(2)}</p>
               </div>
             </motion.div>
@@ -215,11 +215,11 @@ export function PersonalSpace() {
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.15 }}
-              className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20"
             >
               <TrendingDown className="h-4 w-4 text-rose-500 shrink-0" />
               <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Expense</p>
+                <p className="text-xs text-muted-foreground">Expense</p>
                 <p className="text-sm font-bold text-rose-500 truncate">${totalExpense.toFixed(2)}</p>
               </div>
             </motion.div>

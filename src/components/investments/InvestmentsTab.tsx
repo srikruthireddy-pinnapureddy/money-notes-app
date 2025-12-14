@@ -130,28 +130,28 @@ export function InvestmentsTab() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 text-white"
+        className="relative overflow-hidden rounded-xl p-3 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 text-white"
       >
         <div className="relative z-10">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-1.5">
               <BarChart3 className="h-4 w-4 opacity-80" />
-              <p className="text-xs opacity-80">Portfolio</p>
+              <p className="text-sm opacity-80">Portfolio</p>
             </div>
             <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${isPositive ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
               {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
               {isPositive ? "+" : ""}{totalReturnsPercent.toFixed(1)}%
             </div>
           </div>
-          <h2 className="text-2xl font-bold mb-2">₹{totalCurrentValue.toLocaleString()}</h2>
-          <div className="flex gap-4 text-xs opacity-80">
+          <h2 className="text-2xl font-bold mb-1">₹{totalCurrentValue.toLocaleString()}</h2>
+          <div className="flex gap-4 text-sm opacity-80">
             <span>Invested: ₹{totalInvested.toLocaleString()}</span>
             <span className={isPositive ? "text-emerald-200" : "text-rose-200"}>
               Returns: {isPositive ? "+" : ""}₹{Math.abs(totalReturns).toLocaleString()}
             </span>
           </div>
         </div>
-        <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-white/10" />
+        <div className="absolute -right-4 -top-4 w-16 h-16 rounded-full bg-white/10" />
       </motion.div>
 
       {/* Type Tabs */}

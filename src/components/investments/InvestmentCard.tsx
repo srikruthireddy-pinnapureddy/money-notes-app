@@ -57,18 +57,18 @@ export function InvestmentCard({ investment, onEdit, onDelete, onClick }: Invest
 
   return (
     <div 
-      className="flex items-center gap-3 p-3 rounded-xl bg-card border cursor-pointer hover:bg-accent/30 transition-colors"
+      className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-card border cursor-pointer hover:bg-accent/30 transition-colors"
       onClick={onClick}
     >
       {/* Left: Info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-0.5">
           <h4 className="font-medium text-sm truncate">{investment.name}</h4>
-          <Badge variant="secondary" className={`${colors.bg} ${colors.text} border-0 text-[10px] px-1.5 py-0`}>
+          <Badge variant="secondary" className={`${colors.bg} ${colors.text} border-0 text-xs px-1.5 py-0`}>
             {typeLabels[investment.type] || investment.type}
           </Badge>
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>₹{investment.invested_amount.toLocaleString()}</span>
           <span>→</span>
           <span className="font-medium text-foreground">₹{investment.current_value.toLocaleString()}</span>
@@ -77,7 +77,7 @@ export function InvestmentCard({ investment, onEdit, onDelete, onClick }: Invest
 
       {/* Right: Returns + Menu */}
       <div className="flex items-center gap-2">
-        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
           isPositive ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
         }`}>
           {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}

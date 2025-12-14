@@ -48,7 +48,7 @@ export function TransactionCard({ transaction, onEdit, onDelete }: TransactionCa
   const isIncome = transaction.type === "income";
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-card border hover:bg-accent/30 transition-colors">
+    <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-card border hover:bg-accent/30 transition-colors">
       <div className={`p-1.5 rounded-full shrink-0 ${isIncome ? 'bg-emerald-500/10' : 'bg-rose-500/10'}`}>
         {isIncome ? (
           <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
@@ -67,16 +67,16 @@ export function TransactionCard({ transaction, onEdit, onDelete }: TransactionCa
           </span>
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {format(new Date(transaction.transaction_date), "MMM d")}
           </span>
           {transaction.payment_mode && (
-            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
               {paymentModeIcons[transaction.payment_mode] || paymentModeIcons.other}
             </span>
           )}
           {transaction.notes && (
-            <span className="text-[10px] text-muted-foreground truncate">{transaction.notes}</span>
+            <span className="text-xs text-muted-foreground truncate">{transaction.notes}</span>
           )}
         </div>
       </div>
