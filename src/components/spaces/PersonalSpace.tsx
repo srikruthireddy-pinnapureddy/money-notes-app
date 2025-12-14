@@ -168,82 +168,61 @@ export function PersonalSpace() {
         </TabsList>
 
         <TabsContent value="transactions" className="mt-6 space-y-6">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 gap-4">
-            {/* Main Balance Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-primary via-primary/90 to-accent text-primary-foreground"
-            >
-              <div className="relative z-10">
-                <p className="text-sm opacity-80 mb-1">Net Balance</p>
-                <h2 className="text-4xl font-bold mb-4">
-                  ${Math.abs(netBalance).toFixed(2)}
-                  {netBalance < 0 && <span className="text-lg ml-1">deficit</span>}
-                </h2>
-                
-                <div className="flex gap-6">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                      <ArrowUpRight className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs opacity-70">Income</p>
-                      <p className="font-semibold">${totalIncome.toFixed(0)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                      <ArrowDownRight className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs opacity-70">Expense</p>
-                      <p className="font-semibold">${totalExpense.toFixed(0)}</p>
-                    </div>
-                  </div>
+      {/* Compact Summary */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-primary via-primary/90 to-accent text-primary-foreground"
+          >
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs opacity-80">Net Balance</p>
+                <div className="flex gap-3 text-xs">
+                  <span className="flex items-center gap-1 opacity-80">
+                    <ArrowUpRight className="h-3 w-3" />
+                    ${totalIncome.toFixed(0)}
+                  </span>
+                  <span className="flex items-center gap-1 opacity-80">
+                    <ArrowDownRight className="h-3 w-3" />
+                    ${totalExpense.toFixed(0)}
+                  </span>
                 </div>
               </div>
-              
-              {/* Decorative circles */}
-              <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/10" />
-              <div className="absolute -right-5 -bottom-10 w-32 h-32 rounded-full bg-white/5" />
-            </motion.div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 gap-3">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <Card className="p-4 bg-emerald-500/10 border-emerald-500/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="h-4 w-4 text-emerald-500" />
-                    <span className="text-xs text-muted-foreground">Total Income</span>
-                  </div>
-                  <p className="text-xl font-bold text-emerald-500">
-                    ${totalIncome.toFixed(2)}
-                  </p>
-                </Card>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.15 }}
-              >
-                <Card className="p-4 bg-rose-500/10 border-rose-500/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingDown className="h-4 w-4 text-rose-500" />
-                    <span className="text-xs text-muted-foreground">Total Expense</span>
-                  </div>
-                  <p className="text-xl font-bold text-rose-500">
-                    ${totalExpense.toFixed(2)}
-                  </p>
-                </Card>
-              </motion.div>
+              <h2 className="text-2xl font-bold">
+                ${Math.abs(netBalance).toFixed(2)}
+                {netBalance < 0 && <span className="text-sm ml-1 opacity-80">deficit</span>}
+              </h2>
             </div>
+            <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-white/10" />
+          </motion.div>
+
+          {/* Compact Stats Row */}
+          <div className="grid grid-cols-2 gap-2">
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
+            >
+              <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground">Income</p>
+                <p className="text-sm font-bold text-emerald-500 truncate">${totalIncome.toFixed(2)}</p>
+              </div>
+            </motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }}
+              className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20"
+            >
+              <TrendingDown className="h-4 w-4 text-rose-500 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground">Expense</p>
+                <p className="text-sm font-bold text-rose-500 truncate">${totalExpense.toFixed(2)}</p>
+              </div>
+            </motion.div>
           </div>
 
           {/* Filters */}

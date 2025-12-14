@@ -126,55 +126,32 @@ export function InvestmentsTab() {
 
   return (
     <div className="space-y-6">
-      {/* Portfolio Summary */}
+      {/* Compact Portfolio Summary */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 text-white"
+        className="relative overflow-hidden rounded-2xl p-4 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 text-white"
       >
         <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-1">
-            <BarChart3 className="h-5 w-5 opacity-80" />
-            <p className="text-sm opacity-80">Portfolio Value</p>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <BarChart3 className="h-4 w-4 opacity-80" />
+              <p className="text-xs opacity-80">Portfolio</p>
+            </div>
+            <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${isPositive ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
+              {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              {isPositive ? "+" : ""}{totalReturnsPercent.toFixed(1)}%
+            </div>
           </div>
-          <h2 className="text-4xl font-bold mb-4">
-            ₹{totalCurrentValue.toLocaleString()}
-          </h2>
-          
-          <div className="flex gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                <Wallet className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xs opacity-70">Invested</p>
-                <p className="font-semibold">₹{totalInvested.toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-full bg-white/20 flex items-center justify-center`}>
-                {isPositive ? (
-                  <TrendingUp className="h-4 w-4" />
-                ) : (
-                  <TrendingDown className="h-4 w-4" />
-                )}
-              </div>
-              <div>
-                <p className="text-xs opacity-70">Returns</p>
-                <p className="font-semibold">
-                  {isPositive ? "+" : ""}₹{Math.abs(totalReturns).toLocaleString()}
-                  <span className="text-xs ml-1">
-                    ({isPositive ? "+" : ""}{totalReturnsPercent.toFixed(2)}%)
-                  </span>
-                </p>
-              </div>
-            </div>
+          <h2 className="text-2xl font-bold mb-2">₹{totalCurrentValue.toLocaleString()}</h2>
+          <div className="flex gap-4 text-xs opacity-80">
+            <span>Invested: ₹{totalInvested.toLocaleString()}</span>
+            <span className={isPositive ? "text-emerald-200" : "text-rose-200"}>
+              Returns: {isPositive ? "+" : ""}₹{Math.abs(totalReturns).toLocaleString()}
+            </span>
           </div>
         </div>
-        
-        {/* Decorative */}
-        <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/10" />
-        <div className="absolute -right-5 -bottom-10 w-32 h-32 rounded-full bg-white/5" />
+        <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-white/10" />
       </motion.div>
 
       {/* Type Tabs */}

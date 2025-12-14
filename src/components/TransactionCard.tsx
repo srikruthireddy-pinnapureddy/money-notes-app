@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -49,59 +48,56 @@ export function TransactionCard({ transaction, onEdit, onDelete }: TransactionCa
   const isIncome = transaction.type === "income";
 
   return (
-    <Card className="p-4">
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3">
-          <div className={`p-2 rounded-full ${isIncome ? 'bg-emerald-500/10' : 'bg-rose-500/10'}`}>
-            {isIncome ? (
-              <ArrowUpCircle className="h-5 w-5 text-emerald-500" />
-            ) : (
-              <ArrowDownCircle className="h-5 w-5 text-rose-500" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm">
-              {transaction.category || (isIncome ? "Income" : "Expense")}
-            </p>
-            {transaction.notes && (
-              <p className="text-xs text-muted-foreground truncate">{transaction.notes}</p>
-            )}
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(transaction.transaction_date), "MMM d, yyyy")}
-              </span>
-              {transaction.payment_mode && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                  {paymentModeIcons[transaction.payment_mode] || paymentModeIcons.other}
-                  {transaction.payment_mode.replace("_", " ")}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`font-bold ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-card border hover:bg-accent/30 transition-colors">
+      <div className={`p-1.5 rounded-full shrink-0 ${isIncome ? 'bg-emerald-500/10' : 'bg-rose-500/10'}`}>
+        {isIncome ? (
+          <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
+        ) : (
+          <ArrowDownCircle className="h-4 w-4 text-rose-500" />
+        )}
+      </div>
+      
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-medium text-sm truncate">
+            {transaction.category || (isIncome ? "Income" : "Expense")}
+          </p>
+          <span className={`font-semibold text-sm shrink-0 ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
             {isIncome ? '+' : '-'}${Number(transaction.amount).toFixed(2)}
           </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onEdit}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDelete} className="text-destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        </div>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[10px] text-muted-foreground">
+            {format(new Date(transaction.transaction_date), "MMM d")}
+          </span>
+          {transaction.payment_mode && (
+            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+              {paymentModeIcons[transaction.payment_mode] || paymentModeIcons.other}
+            </span>
+          )}
+          {transaction.notes && (
+            <span className="text-[10px] text-muted-foreground truncate">{transaction.notes}</span>
+          )}
         </div>
       </div>
-    </Card>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+            <MoreVertical className="h-3.5 w-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={onEdit}>
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onDelete} className="text-destructive">
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
