@@ -160,34 +160,43 @@ const Dashboard = () => {
   }
   return <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       {/* Header - Hides on scroll down, shows on scroll up */}
-      <motion.header className={cn("border-b bg-background/95 backdrop-blur-sm fixed top-0 left-0 right-0 z-50 safe-top")} initial={{
-      y: 0
-    }} animate={{
-      y: isNavbarVisible ? 0 : -80
-    }} transition={{
-      duration: 0.3,
-      ease: "easeInOut"
-    }}>
-        <div className="px-4 py-4 flex items-center justify-between text-primary">
-          <div className="flex items-center gap-3">
-            <img src={logo} alt="ExpenX" className="h-9 w-9" />
-            <div>
-              <h1 className="text-lg font-bold">ExpenX</h1>
-              <p className="text-xs text-muted-foreground truncate max-w-[150px]">
-                {session?.user?.email || session?.user?.phone}
-              </p>
-            </div>
+      <motion.nav 
+        className={cn(
+          "fixed top-0 left-0 right-0 z-50 safe-top",
+          "bg-background/80 backdrop-blur-md shadow-sm"
+        )} 
+        initial={{ y: 0 }} 
+        animate={{ y: isNavbarVisible ? 0 : -80 }} 
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      >
+        <div className="px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <img src={logo} alt="ExpenX" className="h-8 w-8" />
+            <h1 className="text-lg font-bold text-foreground">ExpenX</h1>
           </div>
-          <div className="flex items-center gap-1">
-            {activeSpace === "groups" && <Button variant="ghost" size="icon" onClick={() => setShowScanner(true)}>
+          
+          <div className="flex items-center gap-2">
+            {activeSpace === "groups" && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-9 w-9 rounded-full hover:bg-muted"
+                onClick={() => setShowScanner(true)}
+              >
                 <ScanBarcode className="h-5 w-5" />
-              </Button>}
-            <Button variant="ghost" size="icon" onClick={() => navigate("/settings")}>
+              </Button>
+            )}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-9 w-9 rounded-full hover:bg-muted"
+              onClick={() => navigate("/settings")}
+            >
               <Settings className="h-5 w-5" />
             </Button>
           </div>
         </div>
-      </motion.header>
+      </motion.nav>
 
       {/* Spacer for fixed header */}
       <div className="h-[72px]" />
