@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -16,30 +16,31 @@ const JoinGroup = () => {
   const [joining, setJoining] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState("");
+  const [hasAttemptedAutoJoin, setHasAttemptedAutoJoin] = useState(false);
 
   useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setLoading(false);
+      }
+    );
+
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const handleJoin = async () => {
-    if (!session) {
-      // Store the invite code and redirect to auth
-      sessionStorage.setItem("pendingInviteCode", code || "");
-      navigate("/auth");
-      return;
-    }
-
-    if (!code) {
-      setError("No invite code provided");
-      return;
-    }
-
+  const performJoin = useCallback(async () => {
+    if (!code || !session) return;
+    
     setJoining(true);
     try {
-      // Use the secure function to join the group
       const { data, error: rpcError } = await supabase.rpc("join_group_with_invite", {
         invite_code: code,
       });
@@ -74,18 +75,29 @@ const JoinGroup = () => {
     } finally {
       setJoining(false);
     }
+  }, [code, session, navigate, toast]);
+
+  const handleJoin = () => {
+    if (!session) {
+      // Store the invite code and redirect to auth
+      sessionStorage.setItem("pendingInviteCode", code || "");
+      navigate("/auth");
+      return;
+    }
+    performJoin();
   };
 
   // Auto-join if coming back from auth with pending invite
   useEffect(() => {
-    if (session && code) {
+    if (session && code && !hasAttemptedAutoJoin && !joining && !error) {
       const pendingCode = sessionStorage.getItem("pendingInviteCode");
       if (pendingCode === code) {
         sessionStorage.removeItem("pendingInviteCode");
-        handleJoin();
+        setHasAttemptedAutoJoin(true);
+        performJoin();
       }
     }
-  }, [session, code]);
+  }, [session, code, hasAttemptedAutoJoin, joining, error, performJoin]);
 
   if (loading) {
     return (
