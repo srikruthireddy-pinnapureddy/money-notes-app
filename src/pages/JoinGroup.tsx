@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Users, CheckCircle, XCircle, AlertCircle } from "lucide-react";
-import logo from "@/assets/logo.png";
+import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { Session } from "@supabase/supabase-js";
 
 interface GroupInfo {
@@ -200,7 +200,7 @@ const JoinGroup = () => {
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
         <Card className="w-full max-w-md p-8 text-center">
           <div className="flex items-center gap-3 mb-6 justify-center">
-            <img src={logo} alt="ExpenX" className="h-12 w-12 rounded-xl object-cover" />
+            <AnimatedLogo size="md" />
             <h1 className="text-2xl font-bold">ExpenX</h1>
           </div>
           <Users className="h-16 w-16 text-primary mx-auto mb-4" />
@@ -221,7 +221,7 @@ const JoinGroup = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8">
         <div className="flex items-center gap-3 mb-6 justify-center">
-          <img src={logo} alt="ExpenX" className="h-12 w-12 rounded-xl object-cover" />
+          <AnimatedLogo size="md" />
           <h1 className="text-2xl font-bold">ExpenX</h1>
         </div>
 

@@ -4,10 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-
 // Logo
-import logo from "@/assets/logo.png";
-
+import { AnimatedLogo } from "@/components/AnimatedLogo";
 // Feature images
 import featureGroupExpenses from "@/assets/feature-group-expenses.png";
 import featureReceiptScan from "@/assets/feature-receipt-scan.png";
@@ -137,7 +135,7 @@ const Landing = () => {
             whileHover={{ scale: 1.02 }}
             transition={{ type: "spring", stiffness: 400, damping: 10 }}
           >
-            <img src={logo} alt="ExpenX" className="h-10 w-10 rounded-lg object-cover" />
+            <AnimatedLogo size="sm" className="h-10 w-10" />
             <span className="text-lg font-bold">ExpenX</span>
           </motion.div>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -372,7 +370,7 @@ const Landing = () => {
       >
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src={logo} alt="ExpenX" className="h-8 w-8 rounded-md object-cover" />
+            <AnimatedLogo size="sm" />
             <span className="font-semibold">ExpenX</span>
           </div>
           <p className="text-sm text-muted-foreground">

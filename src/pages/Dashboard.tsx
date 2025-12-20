@@ -8,7 +8,7 @@ import { Settings, ScanBarcode, LogOut, User } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { SpaceSwitcher, GroupSpace, PersonalSpace } from "@/components/spaces";
-import logo from "@/assets/logo.png";
+import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -175,7 +175,7 @@ const Dashboard = () => {
         opacity: 1,
         scale: 1
       }} className="flex flex-col items-center">
-          <img src={logo} alt="ExpenX" className="h-16 w-16 mb-4" />
+          <AnimatedLogo size="lg" className="mb-4" />
           <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
         </motion.div>
       </div>;
@@ -193,7 +193,7 @@ const Dashboard = () => {
       >
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src={logo} alt="ExpenX" className="h-8 w-8" />
+            <AnimatedLogo size="sm" />
             <h1 className="text-lg font-bold text-foreground">ExpenX</h1>
           </div>
           

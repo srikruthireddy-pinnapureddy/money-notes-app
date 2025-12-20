@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, Smartphone, Check, Share, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import logo from "@/assets/logo.png";
+import { AnimatedLogo } from "@/components/AnimatedLogo";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -78,7 +78,7 @@ const Install = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="max-w-md w-full">
         <CardHeader className="text-center">
-          <img src={logo} alt="ExpenX" className="h-12 mx-auto mb-4" />
+          <AnimatedLogo size="md" className="h-12 mx-auto mb-4" />
           <CardTitle>Install ExpenX</CardTitle>
           <CardDescription>
             Add ExpenX to your home screen for the best experience

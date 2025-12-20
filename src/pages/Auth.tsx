@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import logo from "@/assets/logo.png";
+import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Invalid email address");
@@ -122,7 +122,7 @@ const Auth = () => {
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/10 via-background to-accent/10 px-6 py-8 safe-top">
         <div className="flex-1 flex flex-col justify-center max-w-md w-full mx-auto">
           <div className="flex items-center gap-3 mb-10 justify-center">
-            <img src={logo} alt="ExpenX" className="h-14 w-14 rounded-xl object-cover" />
+            <AnimatedLogo size="md" className="h-14 w-14" />
             <div>
               <h1 className="text-2xl font-bold">ExpenX</h1>
               <p className="text-muted-foreground text-sm">Smart expense splitting</p>
@@ -168,7 +168,7 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/10 via-background to-accent/10 px-6 py-8 safe-top">
       <div className="flex-1 flex flex-col justify-center max-w-md w-full mx-auto">
         <div className="flex items-center gap-3 mb-10 justify-center">
-          <img src={logo} alt="ExpenX" className="h-14 w-14 rounded-xl object-cover" />
+          <AnimatedLogo size="md" className="h-14 w-14" />
           <div>
             <h1 className="text-2xl font-bold">ExpenX</h1>
             <p className="text-muted-foreground text-sm">Smart expense splitting</p>
