@@ -4,9 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Users, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Users, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { Session } from "@supabase/supabase-js";
+
+interface GroupInfo {
+  success: boolean;
+  group_name?: string;
+  group_description?: string;
+  error?: string;
+}
 
 const JoinGroup = () => {
   const { code } = useParams<{ code: string }>();
@@ -17,6 +24,8 @@ const JoinGroup = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState("");
   const [hasAttemptedAutoJoin, setHasAttemptedAutoJoin] = useState(false);
+  const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null);
+  const [loadingGroupInfo, setLoadingGroupInfo] = useState(true);
 
   useEffect(() => {
     // Set up auth state listener
@@ -35,6 +44,63 @@ const JoinGroup = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Fetch group info from invite code
+  useEffect(() => {
+    const fetchGroupInfo = async () => {
+      if (!code) {
+        setLoadingGroupInfo(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.rpc("get_group_info_from_invite", {
+          invite_code_param: code,
+        });
+
+        if (error) throw error;
+        setGroupInfo(data as unknown as GroupInfo);
+      } catch (err) {
+        console.error("Error fetching group info:", err);
+        setGroupInfo({ success: false, error: "Could not load group information" });
+      } finally {
+        setLoadingGroupInfo(false);
+      }
+    };
+
+    fetchGroupInfo();
+  }, [code]);
+
+  // Render group name preview section
+  const renderGroupPreview = () => {
+    if (loadingGroupInfo) {
+      return (
+        <div className="flex items-center justify-center gap-2 py-4 mb-4 bg-muted/50 rounded-lg">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="text-muted-foreground text-sm">Loading group info...</span>
+        </div>
+      );
+    }
+
+    if (!groupInfo?.success) {
+      return (
+        <div className="flex items-center justify-center gap-2 py-4 mb-4 bg-destructive/10 rounded-lg">
+          <AlertCircle className="h-4 w-4 text-destructive" />
+          <span className="text-destructive text-sm">{groupInfo?.error || "Invalid invite"}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="py-4 px-6 mb-4 bg-primary/10 rounded-lg border border-primary/20">
+        <p className="text-sm text-muted-foreground mb-1">You're joining</p>
+        <h3 className="text-xl font-semibold text-foreground">{groupInfo.group_name}</h3>
+        {groupInfo.group_description && (
+          <p className="text-sm text-muted-foreground mt-1">{groupInfo.group_description}</p>
+        )}
+      </div>
+    );
+  };
 
   const performJoin = useCallback(async () => {
     if (!code || !session) return;
@@ -138,7 +204,8 @@ const JoinGroup = () => {
             <h1 className="text-2xl font-bold">ExpenX</h1>
           </div>
           <Users className="h-16 w-16 text-primary mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">You're Invited!</h2>
+          <h2 className="text-2xl font-bold mb-4">You're Invited!</h2>
+          {renderGroupPreview()}
           <p className="text-muted-foreground mb-6">
             Sign in to join this group and start splitting expenses
           </p>
@@ -160,15 +227,13 @@ const JoinGroup = () => {
 
         <div className="text-center mb-6">
           <Users className="h-16 w-16 text-primary mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Join Group</h2>
-          <p className="text-muted-foreground">
-            You've been invited to join a group on ExpenX
-          </p>
+          <h2 className="text-2xl font-bold mb-4">Join Group</h2>
+          {renderGroupPreview()}
         </div>
 
         <Button
           onClick={handleJoin}
-          disabled={joining}
+          disabled={joining || (groupInfo && !groupInfo.success)}
           className="w-full"
         >
           {joining && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

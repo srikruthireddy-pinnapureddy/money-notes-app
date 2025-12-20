@@ -642,6 +642,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_group_info_from_invite: {
+        Args: { invite_code_param: string }
+        Returns: Json
+      }
       get_group_member_profiles: {
         Args: { group_id_param: string }
         Returns: {
