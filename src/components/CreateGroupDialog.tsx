@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GroupInviteDialog } from "./GroupInviteDialog";
+import { groupSchema, MAX_LENGTHS } from "@/utils/validation";
 
 const CURRENCIES = [
   { code: "USD", name: "US Dollar" },
@@ -54,6 +55,23 @@ export function CreateGroupDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate inputs using schema
+    const validation = groupSchema.safeParse({
+      name: name.trim(),
+      description: description.trim() || null,
+      currency: currency || null,
+    });
+    
+    if (!validation.success) {
+      toast({
+        title: "Invalid input",
+        description: validation.error.errors[0]?.message || "Please check your inputs",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -123,26 +141,38 @@ export function CreateGroupDialog({
 
         <form onSubmit={handleSubmit} className="space-y-4 px-4 pb-6">
           <div>
-            <Label htmlFor="name" className="text-base">Group Name</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="name" className="text-base">Group Name</Label>
+              <span className={`text-xs ${name.length > MAX_LENGTHS.groupName ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {name.length}/{MAX_LENGTHS.groupName}
+              </span>
+            </div>
             <Input
               id="name"
               placeholder="Weekend Trip, House Expenses, etc."
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value.slice(0, MAX_LENGTHS.groupName))}
               required
               className="h-12 text-base mt-1"
+              maxLength={MAX_LENGTHS.groupName}
             />
           </div>
 
           <div>
-            <Label htmlFor="description" className="text-base">Description (optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="description" className="text-base">Description (optional)</Label>
+              <span className={`text-xs ${description.length > MAX_LENGTHS.groupDescription ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {description.length}/{MAX_LENGTHS.groupDescription}
+              </span>
+            </div>
             <Textarea
               id="description"
               placeholder="Add details about this group"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value.slice(0, MAX_LENGTHS.groupDescription))}
               rows={3}
               className="text-base mt-1"
+              maxLength={MAX_LENGTHS.groupDescription}
             />
           </div>
 

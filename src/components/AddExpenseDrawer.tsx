@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { z } from "zod";
+import { expenseSchema, MAX_LENGTHS } from "@/utils/validation";
 import { notifyGroupMembers } from "@/utils/notifications";
 
 type Member = {
@@ -161,17 +161,17 @@ export function AddExpenseDrawer({
   };
 
   const handleSubmit = async () => {
-    // Validate inputs
-    const descriptionSchema = z.string().trim().min(1).max(200);
-    const amountSchema = z.number().positive().max(999999999);
+    // Validate inputs using schema
+    const validation = expenseSchema.safeParse({
+      description: description.trim(),
+      amount: parseFloat(amount) || 0,
+      category: category.trim() || null,
+    });
     
-    try {
-      descriptionSchema.parse(description);
-      amountSchema.parse(parseFloat(amount));
-    } catch (error) {
+    if (!validation.success) {
       toast({
         title: "Invalid input",
-        description: "Please check your description and amount",
+        description: validation.error.errors[0]?.message || "Please check your inputs",
         variant: "destructive",
       });
       return;
@@ -386,15 +386,21 @@ export function AddExpenseDrawer({
           </Button>
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-base">
-              Description *
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="description" className="text-base">
+                Description *
+              </Label>
+              <span className={`text-xs ${description.length > MAX_LENGTHS.expenseDescription ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {description.length}/{MAX_LENGTHS.expenseDescription}
+              </span>
+            </div>
             <Input
               id="description"
               placeholder="e.g., Dinner at restaurant"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value.slice(0, MAX_LENGTHS.expenseDescription))}
               className="h-12 text-base"
+              maxLength={MAX_LENGTHS.expenseDescription}
             />
           </div>
 
@@ -417,15 +423,21 @@ export function AddExpenseDrawer({
 
           {/* Category */}
           <div className="space-y-2">
-            <Label htmlFor="category" className="text-base">
-              Category (optional)
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="category" className="text-base">
+                Category (optional)
+              </Label>
+              <span className={`text-xs ${category.length > MAX_LENGTHS.expenseCategory ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {category.length}/{MAX_LENGTHS.expenseCategory}
+              </span>
+            </div>
             <Input
               id="category"
               placeholder="e.g., Food, Transport, Accommodation"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => setCategory(e.target.value.slice(0, MAX_LENGTHS.expenseCategory))}
               className="h-12 text-base"
+              maxLength={MAX_LENGTHS.expenseCategory}
             />
           </div>
 

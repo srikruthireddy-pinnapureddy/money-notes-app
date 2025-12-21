@@ -37,6 +37,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { transactionSchema, MAX_LENGTHS } from "@/utils/validation";
 
 type Transaction = {
   id: string;
@@ -151,19 +152,22 @@ export function AddTransactionDrawer({
   };
 
   const handleSubmit = async () => {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+    // Use custom category if "Other" is selected
+    const finalCategory = category === "__other__" ? customCategory.trim() : category;
+    
+    // Validate inputs using schema
+    const validation = transactionSchema.safeParse({
+      title: title.trim(),
+      amount: parseFloat(amount) || 0,
+      category: finalCategory || null,
+      notes: notes || null,
+      paymentMode: paymentMode || null,
+    });
+    
+    if (!validation.success) {
       toast({
-        title: "Invalid amount",
-        description: "Please enter a valid positive amount",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!title.trim()) {
-      toast({
-        title: "Title required",
-        description: "Please enter a title for this transaction",
+        title: "Invalid input",
+        description: validation.error.errors[0]?.message || "Please check your inputs",
         variant: "destructive",
       });
       return;
@@ -177,8 +181,6 @@ export function AddTransactionDrawer({
 
       const fullNotes = notes ? `${title}\n${notes}` : title;
 
-      // Use custom category if "Other" is selected
-      const finalCategory = category === "__other__" ? customCategory.trim() : category;
 
       const transactionData = {
         user_id: user.id,
@@ -280,15 +282,21 @@ export function AddTransactionDrawer({
               transition={{ delay: 0.1 }}
               className="space-y-2"
             >
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <FileText className="h-4 w-4" />
-                Title
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                  Title
+                </div>
+                <span className={`text-xs ${title.length > 500 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {title.length}/500
+                </span>
               </div>
               <Input
                 placeholder="What's this for?"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => setTitle(e.target.value.slice(0, 500))}
                 className="h-12 text-lg border-2 focus:border-primary transition-colors"
+                maxLength={500}
               />
               
               {/* Category Suggestion Chip */}

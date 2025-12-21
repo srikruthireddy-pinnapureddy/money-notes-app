@@ -29,6 +29,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Loader2, TrendingUp, BarChart3, Layers, PieChart, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Investment } from "./InvestmentCard";
+import { investmentSchema, MAX_LENGTHS } from "@/utils/validation";
 
 type AddInvestmentDrawerProps = {
   open: boolean;
@@ -90,12 +91,23 @@ export function AddInvestmentDrawer({
   };
 
   const handleSubmit = async () => {
-    if (!name.trim()) {
-      toast({ title: "Please enter investment name", variant: "destructive" });
-      return;
-    }
-    if (!investedAmount || parseFloat(investedAmount) <= 0) {
-      toast({ title: "Please enter valid invested amount", variant: "destructive" });
+    // Validate inputs using schema
+    const validation = investmentSchema.safeParse({
+      name: name.trim(),
+      type,
+      symbol: symbol.trim() || null,
+      notes: notes.trim() || null,
+      units: parseFloat(units) || 0,
+      investedAmount: parseFloat(investedAmount) || 0,
+      currentValue: parseFloat(currentValue) || parseFloat(investedAmount) || 0,
+    });
+    
+    if (!validation.success) {
+      toast({
+        title: "Invalid input",
+        description: validation.error.errors[0]?.message || "Please check your inputs",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -184,21 +196,33 @@ export function AddInvestmentDrawer({
           {/* Name and Symbol */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="name">Name *</Label>
+                <span className={`text-xs ${name.length > MAX_LENGTHS.investmentName ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {name.length}/{MAX_LENGTHS.investmentName}
+                </span>
+              </div>
               <Input
                 id="name"
                 placeholder="e.g., Axis Bluechip Fund"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value.slice(0, MAX_LENGTHS.investmentName))}
+                maxLength={MAX_LENGTHS.investmentName}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="symbol">Symbol</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="symbol">Symbol</Label>
+                <span className={`text-xs ${symbol.length > MAX_LENGTHS.investmentSymbol ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {symbol.length}/{MAX_LENGTHS.investmentSymbol}
+                </span>
+              </div>
               <Input
                 id="symbol"
                 placeholder="e.g., AXISBLU"
                 value={symbol}
-                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                onChange={(e) => setSymbol(e.target.value.toUpperCase().slice(0, MAX_LENGTHS.investmentSymbol))}
+                maxLength={MAX_LENGTHS.investmentSymbol}
               />
             </div>
           </div>
@@ -265,13 +289,19 @@ export function AddInvestmentDrawer({
 
           {/* Notes */}
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="notes">Notes</Label>
+              <span className={`text-xs ${notes.length > MAX_LENGTHS.investmentNotes ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {notes.length}/{MAX_LENGTHS.investmentNotes}
+              </span>
+            </div>
             <Textarea
               id="notes"
               placeholder="Additional notes..."
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e) => setNotes(e.target.value.slice(0, MAX_LENGTHS.investmentNotes))}
               rows={2}
+              maxLength={MAX_LENGTHS.investmentNotes}
             />
           </div>
 
