@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import logoAnimated from "@/assets/logo-animated.mp4";
 import logoStatic from "@/assets/logo.png";
-
+import logoWebp from "@/assets/logo.webp";
 interface AnimatedLogoProps {
   className?: string;
   size?: "sm" | "md" | "lg" | "responsive";
@@ -53,12 +53,15 @@ export const AnimatedLogo = ({
   // Show static image on mobile for better performance or if user prefers reduced motion
   if (showStatic || (isMobile && size !== "lg") || prefersReducedMotion) {
     return (
-      <img 
-        src={logoStatic} 
-        alt="ExpenX" 
-        loading="lazy"
-        className={`${sizeClass} rounded-xl object-cover ${className}`}
-      />
+      <picture>
+        <source srcSet={logoWebp} type="image/webp" />
+        <img 
+          src={logoStatic} 
+          alt="ExpenX" 
+          loading="lazy"
+          className={`${sizeClass} rounded-xl object-cover ${className}`}
+        />
+      </picture>
     );
   }
 
