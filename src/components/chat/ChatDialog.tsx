@@ -11,7 +11,7 @@ import {
   X, Send, Loader2, Paperclip, FileText, Reply, 
   CornerDownRight, Check, CheckCheck, Pencil, Trash2, 
   MoreVertical, MessageCircle, StickyNote, Receipt,
-  Smile
+  Smile, SmilePlus
 } from "lucide-react";
 import { 
   DropdownMenu, 
@@ -35,6 +35,14 @@ type ReadReceipt = {
   message_id: string;
   user_id: string;
   read_at: string;
+};
+
+type Reaction = {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
 };
 
 type Message = {
@@ -97,6 +105,8 @@ export function ChatDialog({
   const [showExpenseDialog, setShowExpenseDialog] = useState(false);
   const [expenseSuggestion, setExpenseSuggestion] = useState<{ amount: string; description: string } | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [reactions, setReactions] = useState<Record<string, Reaction[]>>({});
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,19 +115,24 @@ export function ChatDialog({
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasMarkedReadRef = useRef<Set<string>>(new Set());
 
+  const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+
   // Check for high dues and show settlement prompt
   const shouldShowSettlementPrompt = balances?.some(b => Math.abs(b.balance) > 500);
 
   useEffect(() => {
     if (isOpen) {
       fetchMessages();
+      fetchReactions();
       const cleanupMessages = subscribeToMessages();
       const cleanupPresence = subscribeToPresence();
       const cleanupReadReceipts = subscribeToReadReceipts();
+      const cleanupReactions = subscribeToReactions();
       return () => {
         cleanupMessages();
         cleanupPresence();
         cleanupReadReceipts();
+        cleanupReactions();
       };
     }
   }, [groupId, isOpen]);
@@ -240,6 +255,7 @@ export function ChatDialog({
       const messageIds = (data || []).map((m: Message) => m.id);
       if (messageIds.length > 0) {
         fetchReadReceipts(messageIds);
+        fetchReactionsForMessages(messageIds);
         const otherUserMessages = (data || [])
           .filter((m: Message) => m.user_id !== currentUserId)
           .map((m: Message) => m.id);
@@ -320,6 +336,121 @@ export function ChatDialog({
     return () => {
       supabase.removeChannel(channel);
     };
+  };
+
+  const fetchReactions = async () => {
+    try {
+      const messageIds = messages.map(m => m.id);
+      if (messageIds.length === 0) return;
+      await fetchReactionsForMessages(messageIds);
+    } catch (error) {
+      console.error("Failed to fetch reactions:", error);
+    }
+  };
+
+  const fetchReactionsForMessages = async (messageIds: string[]) => {
+    if (messageIds.length === 0) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("message_reactions")
+        .select("*")
+        .in("message_id", messageIds);
+
+      if (error) throw error;
+
+      const reactionsByMessage: Record<string, Reaction[]> = {};
+      (data || []).forEach((reaction: Reaction) => {
+        if (!reactionsByMessage[reaction.message_id]) {
+          reactionsByMessage[reaction.message_id] = [];
+        }
+        reactionsByMessage[reaction.message_id].push(reaction);
+      });
+
+      setReactions(prev => ({ ...prev, ...reactionsByMessage }));
+    } catch (error) {
+      console.error("Failed to fetch reactions:", error);
+    }
+  };
+
+  const subscribeToReactions = () => {
+    const channel = supabase
+      .channel(`reactions-${groupId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "message_reactions",
+        },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const reaction = payload.new as Reaction;
+            setReactions(prev => ({
+              ...prev,
+              [reaction.message_id]: [...(prev[reaction.message_id] || []), reaction],
+            }));
+          } else if (payload.eventType === "DELETE") {
+            const reaction = payload.old as Reaction;
+            setReactions(prev => ({
+              ...prev,
+              [reaction.message_id]: (prev[reaction.message_id] || []).filter(r => r.id !== reaction.id),
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
+
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    try {
+      const existingReaction = (reactions[messageId] || []).find(
+        r => r.user_id === currentUserId && r.emoji === emoji
+      );
+
+      if (existingReaction) {
+        // Remove reaction
+        await supabase
+          .from("message_reactions")
+          .delete()
+          .eq("id", existingReaction.id);
+      } else {
+        // Add reaction
+        await supabase
+          .from("message_reactions")
+          .insert({
+            message_id: messageId,
+            user_id: currentUserId,
+            emoji,
+          });
+      }
+      setReactionPickerMessageId(null);
+    } catch (error: any) {
+      console.error("Failed to toggle reaction:", error);
+    }
+  };
+
+  const getGroupedReactions = (messageId: string) => {
+    const messageReactions = reactions[messageId] || [];
+    const grouped: Record<string, { count: number; users: string[]; hasOwn: boolean }> = {};
+    
+    messageReactions.forEach(r => {
+      if (!grouped[r.emoji]) {
+        grouped[r.emoji] = { count: 0, users: [], hasOwn: false };
+      }
+      grouped[r.emoji].count++;
+      const member = members.find(m => m.user_id === r.user_id);
+      grouped[r.emoji].users.push(member?.display_name || "Unknown");
+      if (r.user_id === currentUserId) {
+        grouped[r.emoji].hasOwn = true;
+      }
+    });
+    
+    return grouped;
   };
 
   const subscribeToMessages = () => {
@@ -769,7 +900,61 @@ export function ChatDialog({
                                     )}
                                     <AttachmentRenderer message={message} />
                                   </div>
+                                  
+                                  {/* Reactions Display */}
+                                  {Object.keys(getGroupedReactions(message.id)).length > 0 && (
+                                    <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+                                      {Object.entries(getGroupedReactions(message.id)).map(([emoji, data]) => (
+                                        <button
+                                          key={emoji}
+                                          onClick={() => toggleReaction(message.id, emoji)}
+                                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-colors ${
+                                            data.hasOwn 
+                                              ? "bg-primary/20 border border-primary/40" 
+                                              : "bg-muted hover:bg-muted/80"
+                                          }`}
+                                          title={data.users.join(", ")}
+                                        >
+                                          <span>{emoji}</span>
+                                          <span className="text-[10px] text-muted-foreground">{data.count}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                  
                                   <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {/* Reaction Button */}
+                                    <Popover 
+                                      open={reactionPickerMessageId === message.id} 
+                                      onOpenChange={(open) => setReactionPickerMessageId(open ? message.id : null)}
+                                    >
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6"
+                                        >
+                                          <SmilePlus className="h-3 w-3" />
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent 
+                                        className="w-auto p-2" 
+                                        side="top" 
+                                        align={isOwn ? "end" : "start"}
+                                      >
+                                        <div className="flex gap-1">
+                                          {QUICK_REACTIONS.map((emoji) => (
+                                            <button
+                                              key={emoji}
+                                              onClick={() => toggleReaction(message.id, emoji)}
+                                              className="p-1.5 hover:bg-muted rounded-md text-lg transition-colors"
+                                            >
+                                              {emoji}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
                                     <Button
                                       variant="ghost"
                                       size="icon"
