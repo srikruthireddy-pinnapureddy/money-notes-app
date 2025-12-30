@@ -9,6 +9,7 @@ import { Session } from "@supabase/supabase-js";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { GroupSpace, PersonalSpace } from "@/components/spaces";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
+import { AnimatedCounter } from "@/components/investments/AnimatedCounter";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -308,7 +309,13 @@ const Dashboard = () => {
                           </div>
                           <span className="text-xs text-muted-foreground">Groups</span>
                         </div>
-                        <p className="text-lg font-bold text-foreground">{groups.length}</p>
+                        {isMenuOpen && (
+                          <AnimatedCounter 
+                            value={groups.length} 
+                            className="text-lg font-bold text-foreground"
+                            duration={0.8}
+                          />
+                        )}
                       </div>
                       <div className="bg-muted/50 rounded-lg p-3">
                         <div className="flex items-center gap-2 mb-1">
@@ -317,24 +324,32 @@ const Dashboard = () => {
                           </div>
                           <span className="text-xs text-muted-foreground">Balance</span>
                         </div>
-                        <p className={cn(
-                          "text-lg font-bold",
-                          totalBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
-                        )}>
-                          {totalBalance >= 0 ? "+" : ""}{totalBalance.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
-                        </p>
+                        {isMenuOpen && (
+                          <AnimatedCounter 
+                            value={Math.abs(totalBalance)} 
+                            prefix={totalBalance >= 0 ? "+₹" : "-₹"}
+                            className={cn(
+                              "text-lg font-bold",
+                              totalBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
+                            )}
+                            duration={1}
+                          />
+                        )}
                       </div>
                     </div>
-                    {investmentsValue > 0 && (
+                    {investmentsValue > 0 && isMenuOpen && (
                       <div className="mt-3 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg p-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <TrendingUp className="h-4 w-4 text-primary" />
                             <span className="text-xs text-muted-foreground">Investments</span>
                           </div>
-                          <p className="text-sm font-bold text-foreground">
-                            {investmentsValue.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
-                          </p>
+                          <AnimatedCounter 
+                            value={investmentsValue} 
+                            prefix="₹"
+                            className="text-sm font-bold text-foreground"
+                            duration={1.2}
+                          />
                         </div>
                       </div>
                     )}
