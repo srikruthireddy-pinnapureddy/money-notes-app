@@ -22,6 +22,13 @@ import {
   PieChart,
   Loader2,
   Sparkles,
+  Target,
+  Calculator,
+  ArrowUpRight,
+  Percent,
+  Coins,
+  Landmark,
+  ChevronDown,
 } from "lucide-react";
 import { InvestmentCard, type Investment } from "./InvestmentCard";
 import { AddInvestmentDrawer } from "./AddInvestmentDrawer";
@@ -40,6 +47,18 @@ import { FDCalculator } from "./FDCalculator";
 
 type InvestmentType = "all" | "sip" | "etf" | "stock" | "mutual_fund" | "other";
 
+type CalculatorType = "goal" | "sipVsLump" | "stepUp" | "sip" | "lumpSum" | "fd" | "rd" | null;
+
+const calculatorButtons = [
+  { id: "goal" as const, label: "Goal-Based", icon: Target, color: "from-violet-500 to-purple-600" },
+  { id: "sipVsLump" as const, label: "SIP vs Lump Sum", icon: ArrowUpRight, color: "from-blue-500 to-cyan-500" },
+  { id: "stepUp" as const, label: "Step-Up SIP", icon: TrendingUp, color: "from-emerald-500 to-green-600" },
+  { id: "sip" as const, label: "SIP Calculator", icon: Calculator, color: "from-violet-500 to-indigo-600" },
+  { id: "lumpSum" as const, label: "Lump Sum", icon: Coins, color: "from-amber-500 to-orange-500" },
+  { id: "fd" as const, label: "FD Calculator", icon: Landmark, color: "from-rose-500 to-pink-600" },
+  { id: "rd" as const, label: "RD Calculator", icon: Percent, color: "from-teal-500 to-cyan-600" },
+];
+
 export function InvestmentsTab() {
   const { toast } = useToast();
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -51,6 +70,7 @@ export function InvestmentsTab() {
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [investmentToDelete, setInvestmentToDelete] = useState<Investment | null>(null);
+  const [activeCalculator, setActiveCalculator] = useState<CalculatorType>(null);
 
   useEffect(() => {
     fetchInvestments();
@@ -108,6 +128,23 @@ export function InvestmentsTab() {
   const handleCardClick = (investment: Investment) => {
     setSelectedInvestment(investment);
     setDetailSheetOpen(true);
+  };
+
+  const toggleCalculator = (calculatorId: CalculatorType) => {
+    setActiveCalculator(prev => prev === calculatorId ? null : calculatorId);
+  };
+
+  const renderActiveCalculator = () => {
+    switch (activeCalculator) {
+      case "goal": return <GoalBasedCalculator />;
+      case "sipVsLump": return <SIPvsLumpSumComparison />;
+      case "stepUp": return <StepUpSIPCalculator />;
+      case "sip": return <SIPCalculator />;
+      case "lumpSum": return <LumpSumCalculator />;
+      case "fd": return <FDCalculator />;
+      case "rd": return <RDCalculator />;
+      default: return null;
+    }
   };
 
   const filteredInvestments = activeType === "all" 
@@ -202,24 +239,54 @@ export function InvestmentsTab() {
       {investments.length > 0 && <GoalProgressCard investments={investments} />}
 
       {/* Calculators Section */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <GoalBasedCalculator />
-        <SIPvsLumpSumComparison />
-      </div>
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+          <Calculator className="h-4 w-4" />
+          Investment Calculators
+        </h3>
+        
+        {/* Calculator Toggle Buttons */}
+        <div className="flex flex-wrap gap-2">
+          {calculatorButtons.map((calc) => {
+            const isActive = activeCalculator === calc.id;
+            const Icon = calc.icon;
+            return (
+              <Button
+                key={calc.id}
+                variant={isActive ? "default" : "outline"}
+                size="sm"
+                onClick={() => toggleCalculator(calc.id)}
+                className={`gap-2 transition-all ${
+                  isActive 
+                    ? `bg-gradient-to-r ${calc.color} text-white border-0 shadow-lg` 
+                    : "hover:bg-muted"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {calc.label}
+                <ChevronDown className={`h-3 w-3 transition-transform ${isActive ? "rotate-180" : ""}`} />
+              </Button>
+            );
+          })}
+        </div>
 
-      {/* Individual Calculators */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <StepUpSIPCalculator />
-        <SIPCalculator />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <LumpSumCalculator />
-        <FDCalculator />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <RDCalculator />
+        {/* Active Calculator Content */}
+        <AnimatePresence mode="wait">
+          {activeCalculator && (
+            <motion.div
+              key={activeCalculator}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="pt-2">
+                {renderActiveCalculator()}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Type Tabs */}
