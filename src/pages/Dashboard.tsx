@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, ScanBarcode, LogOut, User, Menu, Users, CircleUser } from "lucide-react";
+import { Settings, ScanBarcode, LogOut, User, Menu, UsersRound, TrendingUp } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { GroupSpace, PersonalSpace } from "@/components/spaces";
@@ -230,7 +230,7 @@ const Dashboard = () => {
                         : "hover:bg-muted text-foreground"
                     )}
                   >
-                    <Users className="h-5 w-5" />
+                    <UsersRound className="h-5 w-5" />
                     <span className="font-medium">Group Space</span>
                   </button>
                   <button
@@ -242,7 +242,7 @@ const Dashboard = () => {
                         : "hover:bg-muted text-foreground"
                     )}
                   >
-                    <CircleUser className="h-5 w-5" />
+                    <TrendingUp className="h-5 w-5" />
                     <span className="font-medium">Personal Space</span>
                   </button>
                 </div>
