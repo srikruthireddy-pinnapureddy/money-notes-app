@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, ScanBarcode, LogOut, User, Menu, UsersRound, TrendingUp } from "lucide-react";
+import { Settings, ScanBarcode, LogOut, User, Menu, UsersRound, TrendingUp, Wallet, Users } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { GroupSpace, PersonalSpace } from "@/components/spaces";
@@ -49,6 +49,8 @@ const Dashboard = () => {
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const lastScrollY = useRef(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [totalBalance, setTotalBalance] = useState<number>(0);
+  const [investmentsValue, setInvestmentsValue] = useState<number>(0);
 
   // Handle scroll to show/hide navbar
   useEffect(() => {
@@ -110,6 +112,7 @@ const Dashboard = () => {
         navigate("/");
       } else {
         fetchGroups();
+        fetchQuickStats();
       }
       setLoading(false);
     });
@@ -133,6 +136,36 @@ const Dashboard = () => {
       });
     }
   };
+
+  const fetchQuickStats = async () => {
+    try {
+      // Fetch personal transactions balance
+      const { data: transactions } = await supabase
+        .from("personal_transactions")
+        .select("amount, type");
+      
+      if (transactions) {
+        const balance = transactions.reduce((acc, t) => {
+          return t.type === "income" ? acc + Number(t.amount) : acc - Number(t.amount);
+        }, 0);
+        setTotalBalance(balance);
+      }
+
+      // Fetch investments total value
+      const { data: investments } = await supabase
+        .from("investments")
+        .select("current_value")
+        .eq("is_active", true);
+      
+      if (investments) {
+        const total = investments.reduce((acc, inv) => acc + Number(inv.current_value), 0);
+        setInvestmentsValue(total);
+      }
+    } catch (error) {
+      console.error("Error fetching quick stats:", error);
+    }
+  };
+
   const handleSpaceChange = (space: Space) => {
     setDirection(space === "personal" ? 1 : -1);
     setActiveSpace(space);
@@ -259,6 +292,53 @@ const Dashboard = () => {
                     </div>
                     <span className="font-medium">Personal Space</span>
                   </button>
+                </div>
+
+                {/* Quick Stats Section */}
+                <div className="absolute bottom-6 left-4 right-4">
+                  <div className="border-t border-border pt-4">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                      Quick Stats
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="h-6 w-6 rounded-full bg-blue-500/15 flex items-center justify-center">
+                            <Users className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <span className="text-xs text-muted-foreground">Groups</span>
+                        </div>
+                        <p className="text-lg font-bold text-foreground">{groups.length}</p>
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="h-6 w-6 rounded-full bg-emerald-500/15 flex items-center justify-center">
+                            <Wallet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <span className="text-xs text-muted-foreground">Balance</span>
+                        </div>
+                        <p className={cn(
+                          "text-lg font-bold",
+                          totalBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
+                        )}>
+                          {totalBalance >= 0 ? "+" : ""}{totalBalance.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
+                        </p>
+                      </div>
+                    </div>
+                    {investmentsValue > 0 && (
+                      <div className="mt-3 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-primary" />
+                            <span className="text-xs text-muted-foreground">Investments</span>
+                          </div>
+                          <p className="text-sm font-bold text-foreground">
+                            {investmentsValue.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </SheetContent>
             </Sheet>
