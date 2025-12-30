@@ -33,6 +33,7 @@ import { GoalProgressCard } from "./GoalProgressCard";
 import { SIPCalculator } from "./SIPCalculator";
 import { LumpSumCalculator } from "./LumpSumCalculator";
 import { SIPvsLumpSumComparison } from "./SIPvsLumpSumComparison";
+import { StepUpSIPCalculator } from "./StepUpSIPCalculator";
 
 type InvestmentType = "all" | "sip" | "etf" | "stock" | "mutual_fund" | "other";
 
@@ -197,8 +198,11 @@ export function InvestmentsTab() {
       {/* Goal Progress Card */}
       {investments.length > 0 && <GoalProgressCard investments={investments} />}
 
-      {/* SIP vs Lump Sum Comparison */}
-      <SIPvsLumpSumComparison />
+      {/* Calculators Section */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <SIPvsLumpSumComparison />
+        <StepUpSIPCalculator />
+      </div>
 
       {/* Individual Calculators */}
       <div className="grid gap-4 md:grid-cols-2">
