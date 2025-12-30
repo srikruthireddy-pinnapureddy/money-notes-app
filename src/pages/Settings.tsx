@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, User, Mail, Phone, Save } from "lucide-react";
+import { ArrowLeft, Loader2, User, Mail, Phone, Save, Download, Shield } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { z } from "zod";
 
@@ -32,6 +32,7 @@ const Settings = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -138,6 +139,41 @@ const Settings = () => {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/");
+  };
+
+  const handleExportData = async () => {
+    if (!session) return;
+    
+    setExporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('export-user-data');
+      
+      if (error) throw error;
+      
+      // Create and download the JSON file
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `user-data-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Export Complete",
+        description: "Your data has been downloaded successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Export Failed",
+        description: error.message || "Failed to export your data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const getInitials = () => {
@@ -269,6 +305,46 @@ const Settings = () => {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Privacy & Data */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Privacy & Data
+            </CardTitle>
+            <CardDescription>
+              Manage your data and privacy settings
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-sm font-medium mb-1">Export Your Data</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Download a copy of all your personal data in JSON format. This includes your profile, 
+                transactions, investments, group memberships, and messages.
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={handleExportData} 
+                disabled={exporting}
+                className="w-full"
+              >
+                {exporting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download My Data
+                  </>
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

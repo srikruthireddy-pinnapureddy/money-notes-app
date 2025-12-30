@@ -1,1 +1,7 @@
 project_id = "mrnjywxdrlplpphdjyvf"
+
+[functions.scan-receipt]
+verify_jwt = true
+
+[functions.export-user-data]
+verify_jwt = true
