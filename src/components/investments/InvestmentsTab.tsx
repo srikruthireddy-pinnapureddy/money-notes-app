@@ -30,6 +30,7 @@ import { AnimatedCounter } from "./AnimatedCounter";
 import { PortfolioAllocationChart } from "./PortfolioAllocationChart";
 import { QuickStatsGrid } from "./QuickStatsGrid";
 import { GoalProgressCard } from "./GoalProgressCard";
+import { SIPCalculator } from "./SIPCalculator";
 
 type InvestmentType = "all" | "sip" | "etf" | "stock" | "mutual_fund" | "other";
 
@@ -193,6 +194,9 @@ export function InvestmentsTab() {
 
       {/* Goal Progress Card */}
       {investments.length > 0 && <GoalProgressCard investments={investments} />}
+
+      {/* SIP Calculator */}
+      <SIPCalculator />
 
       {/* Type Tabs */}
       <Tabs value={activeType} onValueChange={(v) => setActiveType(v as InvestmentType)}>
