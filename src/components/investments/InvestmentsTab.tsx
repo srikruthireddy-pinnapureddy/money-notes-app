@@ -36,6 +36,7 @@ import { SIPvsLumpSumComparison } from "./SIPvsLumpSumComparison";
 import { StepUpSIPCalculator } from "./StepUpSIPCalculator";
 import { GoalBasedCalculator } from "./GoalBasedCalculator";
 import { RDCalculator } from "./RDCalculator";
+import { FDCalculator } from "./FDCalculator";
 
 type InvestmentType = "all" | "sip" | "etf" | "stock" | "mutual_fund" | "other";
 
@@ -214,6 +215,10 @@ export function InvestmentsTab() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <LumpSumCalculator />
+        <FDCalculator />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
         <RDCalculator />
       </div>
 
