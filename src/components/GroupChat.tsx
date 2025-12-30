@@ -305,7 +305,8 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
 
   const uploadFile = async (file: File): Promise<{ url: string; type: string; path: string } | null> => {
     const fileExt = file.name.split(".").pop();
-    const filePath = `${currentUserId}/${Date.now()}.${fileExt}`;
+    // Use groupId/userId/filename structure for proper RLS policy validation
+    const filePath = `${groupId}/${currentUserId}/${Date.now()}.${fileExt}`;
     
     const { error: uploadError } = await supabase.storage
       .from("chat-attachments")
