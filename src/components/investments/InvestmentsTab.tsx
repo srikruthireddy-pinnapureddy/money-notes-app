@@ -29,6 +29,7 @@ import { InvestmentDetailSheet } from "./InvestmentDetailSheet";
 import { AnimatedCounter } from "./AnimatedCounter";
 import { PortfolioAllocationChart } from "./PortfolioAllocationChart";
 import { QuickStatsGrid } from "./QuickStatsGrid";
+import { GoalProgressCard } from "./GoalProgressCard";
 
 type InvestmentType = "all" | "sip" | "etf" | "stock" | "mutual_fund" | "other";
 
@@ -189,6 +190,9 @@ export function InvestmentsTab() {
 
       {/* Portfolio Allocation Chart */}
       {investments.length > 0 && <PortfolioAllocationChart investments={investments} />}
+
+      {/* Goal Progress Card */}
+      {investments.length > 0 && <GoalProgressCard investments={investments} />}
 
       {/* Type Tabs */}
       <Tabs value={activeType} onValueChange={(v) => setActiveType(v as InvestmentType)}>

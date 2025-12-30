@@ -26,7 +26,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2, TrendingUp, BarChart3, Layers, PieChart, HelpCircle } from "lucide-react";
+import { CalendarIcon, Loader2, TrendingUp, BarChart3, Layers, PieChart, HelpCircle, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Investment } from "./InvestmentCard";
 import { investmentSchema, MAX_LENGTHS } from "@/utils/validation";
@@ -63,6 +63,7 @@ export function AddInvestmentDrawer({
   const [currentValue, setCurrentValue] = useState("");
   const [purchaseDate, setPurchaseDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
+  const [targetAmount, setTargetAmount] = useState("");
 
   useEffect(() => {
     if (editingInvestment) {
@@ -74,6 +75,7 @@ export function AddInvestmentDrawer({
       setCurrentValue(editingInvestment.current_value.toString());
       setPurchaseDate(new Date(editingInvestment.purchase_date));
       setNotes(editingInvestment.notes || "");
+      setTargetAmount(editingInvestment.target_amount?.toString() || "");
     } else {
       resetForm();
     }
@@ -88,6 +90,7 @@ export function AddInvestmentDrawer({
     setCurrentValue("");
     setPurchaseDate(new Date());
     setNotes("");
+    setTargetAmount("");
   };
 
   const handleSubmit = async () => {
@@ -126,6 +129,7 @@ export function AddInvestmentDrawer({
         current_value: parseFloat(currentValue) || parseFloat(investedAmount),
         purchase_date: format(purchaseDate, "yyyy-MM-dd"),
         notes: notes.trim() || null,
+        target_amount: targetAmount ? parseFloat(targetAmount) : null,
       };
 
       if (editingInvestment) {
@@ -261,6 +265,24 @@ export function AddInvestmentDrawer({
                 onChange={(e) => setCurrentValue(e.target.value)}
               />
             </div>
+          </div>
+
+          {/* Target Amount (Goal) */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-amber-500" />
+              <Label htmlFor="target">Target Amount (Goal)</Label>
+            </div>
+            <Input
+              id="target"
+              type="number"
+              placeholder="₹0 (optional)"
+              value={targetAmount}
+              onChange={(e) => setTargetAmount(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Set a target value to track your progress towards this goal
+            </p>
           </div>
 
           {/* Purchase Date */}

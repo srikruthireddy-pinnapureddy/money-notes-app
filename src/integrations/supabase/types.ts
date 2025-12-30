@@ -351,6 +351,7 @@ export type Database = {
           notes: string | null
           purchase_date: string
           symbol: string | null
+          target_amount: number | null
           type: string
           units: number
           updated_at: string
@@ -366,6 +367,7 @@ export type Database = {
           notes?: string | null
           purchase_date?: string
           symbol?: string | null
+          target_amount?: number | null
           type: string
           units?: number
           updated_at?: string
@@ -381,6 +383,7 @@ export type Database = {
           notes?: string | null
           purchase_date?: string
           symbol?: string | null
+          target_amount?: number | null
           type?: string
           units?: number
           updated_at?: string
