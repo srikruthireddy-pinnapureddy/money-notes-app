@@ -162,4 +162,42 @@ export const MAX_LENGTHS = {
   messageContent: 5000,
   notificationTitle: 200,
   notificationMessage: 1000,
+  fileUploadSize: 10 * 1024 * 1024, // 10MB
 } as const;
+
+// Allowed MIME types for file uploads
+export const ALLOWED_FILE_TYPES = {
+  images: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  documents: [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+    'text/csv',
+  ],
+} as const;
+
+export const ALL_ALLOWED_FILE_TYPES = [
+  ...ALLOWED_FILE_TYPES.images,
+  ...ALLOWED_FILE_TYPES.documents,
+];
+
+// File validation helper
+export function validateFile(file: File): { valid: true } | { valid: false; error: string } {
+  // Check file size
+  if (file.size > MAX_LENGTHS.fileUploadSize) {
+    return { valid: false, error: `File size must be less than ${MAX_LENGTHS.fileUploadSize / (1024 * 1024)}MB` };
+  }
+
+  // Check MIME type
+  if (!ALL_ALLOWED_FILE_TYPES.includes(file.type as any)) {
+    return { 
+      valid: false, 
+      error: 'File type not allowed. Allowed types: images (JPEG, PNG, GIF, WebP) and documents (PDF, Word, Excel, TXT, CSV)' 
+    };
+  }
+
+  return { valid: true };
+}

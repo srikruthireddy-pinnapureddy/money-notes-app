@@ -23,7 +23,7 @@ import { format } from "date-fns";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { GroupNotes } from "./GroupNotes";
 import { ExpenseAttachDialog } from "./ExpenseAttachDialog";
-import { MAX_LENGTHS } from "@/utils/validation";
+import { MAX_LENGTHS, validateFile, ALL_ALLOWED_FILE_TYPES } from "@/utils/validation";
 import EmojiPicker, { Theme, EmojiClickData } from "emoji-picker-react";
 
 type TypingUser = {
@@ -570,12 +570,16 @@ export function ChatDialog({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
+      const validation = validateFile(file);
+      if (!validation.valid) {
         toast({
-          title: "File too large",
-          description: "Maximum file size is 10MB",
+          title: "Invalid file",
+          description: 'error' in validation ? validation.error : 'Invalid file',
           variant: "destructive",
         });
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
         return;
       }
       setSelectedFile(file);
