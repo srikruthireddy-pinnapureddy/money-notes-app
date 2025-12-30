@@ -224,25 +224,39 @@ const Dashboard = () => {
                   <button
                     onClick={() => handleSpaceChange("groups")}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors",
+                      "w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200",
                       activeSpace === "groups" 
-                        ? "bg-primary text-primary-foreground" 
+                        ? "bg-primary/10 text-primary" 
                         : "hover:bg-muted text-foreground"
                     )}
                   >
-                    <UsersRound className="h-5 w-5" />
+                    <div className={cn(
+                      "flex items-center justify-center h-10 w-10 rounded-full transition-all duration-200",
+                      activeSpace === "groups"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                    )}>
+                      <UsersRound className="h-5 w-5" />
+                    </div>
                     <span className="font-medium">Group Space</span>
                   </button>
                   <button
                     onClick={() => handleSpaceChange("personal")}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors",
+                      "w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200",
                       activeSpace === "personal" 
-                        ? "bg-primary text-primary-foreground" 
+                        ? "bg-primary/10 text-primary" 
                         : "hover:bg-muted text-foreground"
                     )}
                   >
-                    <TrendingUp className="h-5 w-5" />
+                    <div className={cn(
+                      "flex items-center justify-center h-10 w-10 rounded-full transition-all duration-200",
+                      activeSpace === "personal"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    )}>
+                      <TrendingUp className="h-5 w-5" />
+                    </div>
                     <span className="font-medium">Personal Space</span>
                   </button>
                 </div>
