@@ -9,6 +9,7 @@ import { MessageCircle, Send, Loader2, Paperclip, FileText, X, Reply, CornerDown
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { validateFile, ALL_ALLOWED_FILE_TYPES } from "@/utils/validation";
 
 type TypingUser = {
   user_id: string;
@@ -387,12 +388,16 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
+      const validation = validateFile(file);
+      if (!validation.valid) {
         toast({
-          title: "File too large",
-          description: "Maximum file size is 10MB",
+          title: "Invalid file",
+          description: 'error' in validation ? validation.error : 'Invalid file',
           variant: "destructive",
         });
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
         return;
       }
       setSelectedFile(file);
