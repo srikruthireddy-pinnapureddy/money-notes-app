@@ -4,8 +4,9 @@ import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Users, TrendingUp, TrendingDown, MoreVertical, Trash2 } from "lucide-react";
+import { Plus, Users, TrendingUp, TrendingDown, MoreVertical, Trash2, Pencil } from "lucide-react";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
+import { EditGroupDialog } from "@/components/EditGroupDialog";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -65,6 +66,8 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [groupToEdit, setGroupToEdit] = useState<Group | null>(null);
 
   const handleDeleteGroup = async () => {
     if (!groupToDelete) return;
@@ -277,6 +280,15 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenuItem 
+                          onClick={() => {
+                            setGroupToEdit(group);
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit Group
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
                           className="text-destructive focus:text-destructive"
                           onClick={() => {
                             setGroupToDelete(group);
@@ -411,6 +423,13 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditGroupDialog
+        group={groupToEdit}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onGroupUpdated={onGroupCreated}
+      />
     </div>
   );
 }
