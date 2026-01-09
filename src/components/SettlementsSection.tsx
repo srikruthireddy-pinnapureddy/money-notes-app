@@ -14,9 +14,10 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, CheckCircle2, Loader2, TrendingUp } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, Loader2, TrendingUp } from "lucide-react";
 import { calculateOptimalSettlements, type Balance, type Settlement } from "@/utils/settlementCalculator";
 import { createNotification } from "@/utils/notifications";
+import { SendReminderDialog } from "@/components/reminders";
 
 type SettlementsSectionProps = {
   groupId: string;
@@ -33,6 +34,7 @@ export function SettlementsSection({
 }: SettlementsSectionProps) {
   const { toast } = useToast();
   const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null);
+  const [reminderSettlement, setReminderSettlement] = useState<Settlement | null>(null);
   const [loading, setLoading] = useState(false);
 
   const settlements = calculateOptimalSettlements(balances);
@@ -156,12 +158,21 @@ export function SettlementsSection({
                     {groupCurrency} {settlement.amount.toFixed(2)}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() => setSelectedSettlement(settlement)}
-                >
-                  Settle Up
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setReminderSettlement(settlement)}
+                  >
+                    <Bell className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setSelectedSettlement(settlement)}
+                  >
+                    Settle Up
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
@@ -240,6 +251,19 @@ export function SettlementsSection({
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      {reminderSettlement && (
+        <SendReminderDialog
+          open={reminderSettlement !== null}
+          onOpenChange={(open) => !open && setReminderSettlement(null)}
+          groupId={groupId}
+          groupCurrency={groupCurrency}
+          toUserId={reminderSettlement.from_user_id}
+          toUserName={reminderSettlement.from_user_name}
+          amount={reminderSettlement.amount}
+          onSent={() => setReminderSettlement(null)}
+        />
+      )}
     </>
   );
 }
