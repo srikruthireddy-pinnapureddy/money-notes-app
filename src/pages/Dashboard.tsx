@@ -52,11 +52,12 @@ const Dashboard = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [totalBalance, setTotalBalance] = useState<number>(0);
   const [investmentsValue, setInvestmentsValue] = useState<number>(0);
-  const [spendingTrend, setSpendingTrend] = useState<{ current: number; previous: number; percentChange: number }>({
+const [spendingTrend, setSpendingTrend] = useState<{ current: number; previous: number; percentChange: number }>({
     current: 0,
     previous: 0,
     percentChange: 0,
   });
+  const [monthlySpending, setMonthlySpending] = useState<{ month: string; amount: number }[]>([]);
 
   // Handle scroll to show/hide navbar
   useEffect(() => {
@@ -188,6 +189,29 @@ const Dashboard = () => {
           previous: lastMonthSpending,
           percentChange,
         });
+
+        // Calculate last 3 months spending for mini chart
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const last3Months: { month: string; amount: number }[] = [];
+        
+        for (let i = 2; i >= 0; i--) {
+          const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+          
+          const monthSpending = transactions
+            .filter(t => {
+              const date = new Date(t.transaction_date);
+              return t.type === "expense" && date >= monthDate && date <= monthEnd;
+            })
+            .reduce((acc, t) => acc + Number(t.amount), 0);
+          
+          last3Months.push({
+            month: monthNames[monthDate.getMonth()],
+            amount: monthSpending,
+          });
+        }
+        
+        setMonthlySpending(last3Months);
       }
 
       // Fetch investments total value
@@ -392,7 +416,7 @@ const Dashboard = () => {
                       </div>
                     )}
 
-                    {/* Monthly Spending Trend */}
+                    {/* Monthly Spending Trend with Mini Bar Chart */}
                     {isMenuOpen && (
                       <div className="mt-3 bg-muted/30 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-2">
@@ -418,6 +442,32 @@ const Dashboard = () => {
                             </div>
                           )}
                         </div>
+                        
+                        {/* Mini Bar Chart */}
+                        {monthlySpending.length > 0 && (
+                          <div className="flex items-end justify-between gap-2 h-12 mb-2">
+                            {(() => {
+                              const maxAmount = Math.max(...monthlySpending.map(m => m.amount), 1);
+                              return monthlySpending.map((month, index) => (
+                                <div key={month.month} className="flex-1 flex flex-col items-center gap-1">
+                                  <motion.div
+                                    className={cn(
+                                      "w-full rounded-t-sm",
+                                      index === monthlySpending.length - 1 
+                                        ? "bg-primary" 
+                                        : "bg-primary/40"
+                                    )}
+                                    initial={{ height: 0 }}
+                                    animate={{ height: `${Math.max((month.amount / maxAmount) * 32, 4)}px` }}
+                                    transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
+                                  />
+                                  <span className="text-[10px] text-muted-foreground">{month.month}</span>
+                                </div>
+                              ));
+                            })()}
+                          </div>
+                        )}
+                        
                         <div className="flex items-baseline justify-between">
                           <div>
                             <AnimatedCounter 
