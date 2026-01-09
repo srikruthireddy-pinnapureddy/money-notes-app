@@ -13,9 +13,11 @@ import {
   Users, 
   Loader2,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  Images
 } from "lucide-react";
 import { AddExpenseDrawer } from "@/components/AddExpenseDrawer";
+import { BatchReceiptScanner } from "@/components/BatchReceiptScanner";
 import { GroupInviteDialog } from "@/components/GroupInviteDialog";
 import { SettlementsSection } from "@/components/SettlementsSection";
 import { EditExpenseDrawer } from "@/components/EditExpenseDrawer";
@@ -78,6 +80,7 @@ const GroupDetail = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [balances, setBalances] = useState<Balance[]>([]);
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
+  const [batchScanOpen, setBatchScanOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
   const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
@@ -542,8 +545,17 @@ const GroupDetail = () => {
         onExpenseAdded={fetchGroupData}
       />
 
-      {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-20 safe-bottom">
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 right-6 z-20 safe-bottom flex flex-col gap-3">
+        <Button 
+          size="lg" 
+          variant="secondary"
+          className="h-14 w-14 rounded-full shadow-xl"
+          onClick={() => setBatchScanOpen(true)}
+          title="Batch scan receipts"
+        >
+          <Images className="h-6 w-6" />
+        </Button>
         <Button 
           size="lg" 
           className="h-16 w-16 rounded-full shadow-2xl"
@@ -560,6 +572,15 @@ const GroupDetail = () => {
         groupCurrency={group.currency}
         members={members}
         onExpenseAdded={fetchGroupData}
+      />
+
+      <BatchReceiptScanner
+        open={batchScanOpen}
+        onOpenChange={setBatchScanOpen}
+        groupId={id!}
+        groupCurrency={group.currency}
+        members={members}
+        onExpensesAdded={fetchGroupData}
       />
 
       <GroupInviteDialog
