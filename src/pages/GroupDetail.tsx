@@ -22,6 +22,8 @@ import { EditExpenseDrawer } from "@/components/EditExpenseDrawer";
 import { DeleteExpenseDialog } from "@/components/DeleteExpenseDialog";
 import { ActiveInvitesSection } from "@/components/ActiveInvitesSection";
 import { FloatingChat } from "@/components/chat";
+import { ExpenseComments } from "@/components/ExpenseComments";
+import { ActivityFeed } from "@/components/ActivityFeed";
 
 type Group = {
   id: string;
@@ -290,6 +292,9 @@ const GroupDetail = () => {
           )}
         </Card>
 
+        {/* Activity Feed */}
+        <ActivityFeed groupId={id!} />
+
         {/* Settlements Section */}
         <SettlementsSection
           groupId={id!}
@@ -432,6 +437,13 @@ const GroupDetail = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* Expense Comments */}
+                    <ExpenseComments
+                      expenseId={expense.id}
+                      groupId={id!}
+                      currentUserId={currentUserId!}
+                    />
                   </Card>
                 );
               })}
