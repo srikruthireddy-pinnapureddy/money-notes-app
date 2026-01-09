@@ -4,9 +4,25 @@ import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Users, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Users, TrendingUp, TrendingDown, MoreVertical, Trash2 } from "lucide-react";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Group = {
   id: string;
@@ -46,6 +62,38 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [groupsData, setGroupsData] = useState<Record<string, GroupData>>({});
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteGroup = async () => {
+    if (!groupToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("groups")
+        .delete()
+        .eq("id", groupToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Group deleted",
+        description: `"${groupToDelete.name}" has been deleted successfully.`,
+      });
+      onGroupCreated(); // Refresh groups list
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete group. You may not have permission.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setGroupToDelete(null);
+    }
+  };
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -216,18 +264,43 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
                       <span className="text-xs">{data.memberCount} members</span>
                     </div>
                   </div>
-                  {data.userBalance !== 0 && (
-                    <div className={cn(
-                      "p-1.5 rounded-lg",
-                      data.userBalance > 0 ? "text-emerald-500" : "text-rose-500"
-                    )}>
-                      {data.userBalance > 0 ? (
-                        <TrendingUp className="h-4 w-4" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4" />
-                      )}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 hover:bg-muted"
+                        >
+                          <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem 
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => {
+                            setGroupToDelete(group);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Group
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {data.userBalance !== 0 && (
+                      <div className={cn(
+                        "p-1.5 rounded-lg",
+                        data.userBalance > 0 ? "text-emerald-500" : "text-rose-500"
+                      )}>
+                        {data.userBalance > 0 ? (
+                          <TrendingUp className="h-4 w-4" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Member Avatars */}
@@ -317,6 +390,27 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
           setCreateDialogOpen(false);
         }}
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{groupToDelete?.name}"? This will permanently delete all expenses, settlements, and messages in this group. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteGroup}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
