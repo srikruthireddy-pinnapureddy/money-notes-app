@@ -56,6 +56,47 @@ export type Database = {
           },
         ]
       }
+      budgets: {
+        Row: {
+          alert_threshold: number | null
+          category: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          monthly_limit: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          alert_threshold?: number | null
+          category: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          monthly_limit: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          alert_threshold?: number | null
+          category?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          monthly_limit?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_comments: {
         Row: {
           content: string
@@ -594,6 +635,61 @@ export type Database = {
           },
         ]
       }
+      payment_reminders: {
+        Row: {
+          acknowledged_at: string | null
+          amount: number
+          from_user: string
+          group_id: string
+          id: string
+          message: string | null
+          sent_at: string | null
+          to_user: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          amount: number
+          from_user: string
+          group_id: string
+          id?: string
+          message?: string | null
+          sent_at?: string | null
+          to_user: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          amount?: number
+          from_user?: string
+          group_id?: string
+          id?: string
+          message?: string | null
+          sent_at?: string | null
+          to_user?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_reminders_from_user_fkey"
+            columns: ["from_user"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reminders_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reminders_to_user_fkey"
+            columns: ["to_user"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personal_transactions: {
         Row: {
           amount: number
@@ -686,6 +782,78 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      recurring_expenses: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string | null
+          created_by: string
+          currency: string | null
+          day_of_month: number | null
+          day_of_week: number | null
+          description: string
+          frequency: string
+          group_id: string
+          id: string
+          is_active: boolean | null
+          last_processed_at: string | null
+          next_occurrence: string
+          split_config: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string | null
+          created_by: string
+          currency?: string | null
+          day_of_month?: number | null
+          day_of_week?: number | null
+          description: string
+          frequency: string
+          group_id: string
+          id?: string
+          is_active?: boolean | null
+          last_processed_at?: string | null
+          next_occurrence: string
+          split_config?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string | null
+          created_by?: string
+          currency?: string | null
+          day_of_month?: number | null
+          day_of_week?: number | null
+          description?: string
+          frequency?: string
+          group_id?: string
+          id?: string
+          is_active?: boolean | null
+          last_processed_at?: string | null
+          next_occurrence?: string
+          split_config?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_expenses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_expenses_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       settlements: {
         Row: {

@@ -24,6 +24,8 @@ import { ActiveInvitesSection } from "@/components/ActiveInvitesSection";
 import { FloatingChat } from "@/components/chat";
 import { ExpenseComments } from "@/components/ExpenseComments";
 import { ActivityFeed } from "@/components/ActivityFeed";
+import { RecurringExpensesList } from "@/components/recurring";
+import { SendReminderDialog } from "@/components/reminders";
 
 type Group = {
   id: string;
@@ -294,6 +296,14 @@ const GroupDetail = () => {
 
         {/* Activity Feed */}
         <ActivityFeed groupId={id!} />
+
+        {/* Recurring Expenses */}
+        <RecurringExpensesList
+          groupId={id!}
+          groupCurrency={group.currency}
+          members={members}
+          currentUserId={currentUserId!}
+        />
 
         {/* Settlements Section */}
         <SettlementsSection
