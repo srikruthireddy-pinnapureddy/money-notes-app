@@ -19,6 +19,7 @@ import {
 import { AddTransactionDrawer } from "@/components/AddTransactionDrawer";
 import { TransactionCard } from "@/components/TransactionCard";
 import { InvestmentsTab } from "@/components/investments";
+import { BudgetAlertBanner } from "@/components/budget/BudgetAlertBanner";
 import {
   Select,
   SelectContent,
@@ -168,7 +169,10 @@ export function PersonalSpace() {
         </TabsList>
 
         <TabsContent value="transactions" className="mt-6 space-y-6">
-        {/* Single Summary Card */}
+          {/* Budget Alerts */}
+          <BudgetAlertBanner />
+          
+          {/* Single Summary Card */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
