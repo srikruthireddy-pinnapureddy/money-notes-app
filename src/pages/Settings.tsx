@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, User, Mail, Phone, Save, Download, Shield, Sun, Moon, Monitor, Palette } from "lucide-react";
+import { ArrowLeft, Loader2, User, Mail, Phone, Save, Download, Shield, Sun, Moon, Monitor, Palette, FileText } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { z } from "zod";
+import { ExportReportsDialog } from "@/components/reports";
 
 const profileSchema = z.object({
   displayName: z.string().trim().max(50, "Display name must be 50 characters or less").optional(),
@@ -39,6 +40,7 @@ const Settings = () => {
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   // Prevent hydration mismatch
   useEffect(() => {
@@ -378,10 +380,24 @@ const Settings = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-sm font-medium mb-1">Export Your Data</p>
+              <p className="text-sm font-medium mb-1">Export Reports</p>
               <p className="text-xs text-muted-foreground mb-3">
-                Download a copy of all your personal data in JSON format. This includes your profile, 
-                transactions, investments, group memberships, and messages.
+                Generate and download reports of your personal transactions and group expenses in CSV or JSON format.
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={() => setExportDialogOpen(true)}
+                className="w-full"
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Export Reports
+              </Button>
+            </div>
+
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-sm font-medium mb-1">Export All Data</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Download a complete copy of all your personal data in JSON format.
               </p>
               <Button 
                 variant="outline" 
@@ -414,6 +430,8 @@ const Settings = () => {
           </CardContent>
         </Card>
       </main>
+
+      <ExportReportsDialog open={exportDialogOpen} onOpenChange={setExportDialogOpen} />
     </div>
   );
 };
