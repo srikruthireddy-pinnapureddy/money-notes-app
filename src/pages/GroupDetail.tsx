@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import { ExpenseComments } from "@/components/ExpenseComments";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { RecurringExpensesList } from "@/components/recurring";
 import { SendReminderDialog } from "@/components/reminders";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type Group = {
   id: string;
@@ -83,11 +84,79 @@ const GroupDetail = () => {
   const [deleteExpenseDesc, setDeleteExpenseDesc] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
+  // Initial data fetch
   useEffect(() => {
     if (id) {
       fetchGroupData();
     }
   }, [id]);
+
+  // Realtime subscriptions for expenses and settlements
+  useEffect(() => {
+    if (!id) return;
+
+    const expensesChannel = supabase
+      .channel(`expenses-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "expenses",
+          filter: `group_id=eq.${id}`,
+        },
+        () => {
+          // Refetch expenses when any change occurs
+          fetchExpensesOnly();
+        }
+      )
+      .subscribe();
+
+    const settlementsChannel = supabase
+      .channel(`settlements-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "settlements",
+          filter: `group_id=eq.${id}`,
+        },
+        () => {
+          // Refetch data when a settlement is recorded
+          fetchExpensesOnly();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(expensesChannel);
+      supabase.removeChannel(settlementsChannel);
+    };
+  }, [id, members]);
+
+  // Fetch only expenses (for realtime updates)
+  const fetchExpensesOnly = useCallback(async () => {
+    if (!id || members.length === 0) return;
+    
+    try {
+      const { data: expensesData, error: expensesError } = await supabase
+        .from("expenses")
+        .select(`
+          *,
+          profiles(display_name),
+          expense_splits(user_id, amount)
+        `)
+        .eq("group_id", id)
+        .order("expense_date", { ascending: false });
+
+      if (expensesError) throw expensesError;
+      setExpenses(expensesData || []);
+      calculateBalances(members, expensesData || []);
+    } catch (error: any) {
+      console.error("Error fetching expenses:", error);
+    }
+  }, [id, members]);
 
   const fetchGroupData = async () => {
     try {
