@@ -63,12 +63,26 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
   const [readReceipts, setReadReceipts] = useState<Record<string, ReadReceipt[]>>({});
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [editContent, setEditContent] = useState("");
+  
+  // Mentions state
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasMarkedReadRef = useRef<Set<string>>(new Set());
+
+  // Filter members for mention suggestions
+  const filteredMembers = members.filter(
+    (m) =>
+      m.user_id !== currentUserId &&
+      m.display_name?.toLowerCase().includes(mentionQuery.toLowerCase())
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -380,10 +394,115 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
+    // Handle mention navigation
+    if (showMentions && filteredMembers.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIndex((prev) => (prev + 1) % filteredMembers.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex((prev) => (prev - 1 + filteredMembers.length) % filteredMembers.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        insertMention(filteredMembers[mentionIndex]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowMentions(false);
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // Handle input change with mention detection
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const position = e.target.selectionStart || 0;
+    
+    setNewMessage(value);
+    setCursorPosition(position);
+    
+    // Check for @ mentions
+    const textBeforeCursor = value.slice(0, position);
+    const atMatch = textBeforeCursor.match(/@(\w*)$/);
+    
+    if (atMatch) {
+      setMentionQuery(atMatch[1]);
+      setShowMentions(true);
+      setMentionIndex(0);
+    } else {
+      setShowMentions(false);
+      setMentionQuery("");
+    }
+    
+    if (value) handleTyping();
+  };
+
+  // Insert a mention into the message
+  const insertMention = (member: Member) => {
+    const textBeforeCursor = newMessage.slice(0, cursorPosition);
+    const textAfterCursor = newMessage.slice(cursorPosition);
+    const atIndex = textBeforeCursor.lastIndexOf("@");
+    
+    const newText = 
+      textBeforeCursor.slice(0, atIndex) + 
+      `@${member.display_name} ` + 
+      textAfterCursor;
+    
+    setNewMessage(newText);
+    setShowMentions(false);
+    setMentionQuery("");
+    inputRef.current?.focus();
+  };
+
+  // Render message content with highlighted mentions
+  const renderMessageContent = (content: string) => {
+    const mentionPattern = /@(\w+(?:\s\w+)?)/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = mentionPattern.exec(content)) !== null) {
+      // Add text before the mention
+      if (match.index > lastIndex) {
+        parts.push(content.slice(lastIndex, match.index));
+      }
+      
+      // Check if this is a valid member mention
+      const mentionedName = match[1];
+      const isMember = members.some(
+        (m) => m.display_name?.toLowerCase() === mentionedName.toLowerCase()
+      );
+      
+      if (isMember) {
+        parts.push(
+          <span key={match.index} className="bg-primary/20 text-primary rounded px-0.5">
+            @{mentionedName}
+          </span>
+        );
+      } else {
+        parts.push(match[0]);
+      }
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add remaining text
+    if (lastIndex < content.length) {
+      parts.push(content.slice(lastIndex));
+    }
+    
+    return parts.length > 0 ? parts : content;
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -661,10 +780,10 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
                             </p>
                           )}
                           {message.content && !message.file_url && (
-                            <p className="text-sm break-words">{message.content}</p>
+                            <p className="text-sm break-words">{renderMessageContent(message.content)}</p>
                           )}
                           {message.file_url && message.file_type !== "image" && (
-                            <p className="text-sm break-words">{message.content}</p>
+                            <p className="text-sm break-words">{renderMessageContent(message.content)}</p>
                           )}
                           {message.edited_at && (
                             <span className="text-[10px] opacity-60 italic ml-1">(edited)</span>
@@ -814,7 +933,27 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
             </div>
           )}
 
-          <div className="flex gap-2 mt-4">
+          {/* Mention Suggestions */}
+          {showMentions && filteredMembers.length > 0 && (
+            <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border rounded-lg shadow-lg max-h-40 overflow-y-auto z-50">
+              {filteredMembers.slice(0, 5).map((member, index) => (
+                <button
+                  key={member.user_id}
+                  className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-muted transition-colors ${
+                    index === mentionIndex ? "bg-muted" : ""
+                  }`}
+                  onClick={() => insertMention(member)}
+                >
+                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
+                    {member.display_name?.charAt(0)?.toUpperCase() || "?"}
+                  </div>
+                  <span>{member.display_name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-2 mt-4 relative">
             <input
               ref={fileInputRef}
               type="file"
@@ -832,13 +971,10 @@ export function GroupChat({ groupId, currentUserId, members }: GroupChatProps) {
             </Button>
             <Input
               ref={inputRef}
-              placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
+              placeholder={replyingTo ? "Type your reply... (use @ to mention)" : "Type a message... (use @ to mention)"}
               value={newMessage}
-              onChange={(e) => {
-                setNewMessage(e.target.value);
-                if (e.target.value) handleTyping();
-              }}
-              onKeyPress={handleKeyPress}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyPress}
               disabled={sending}
               className="flex-1"
             />
