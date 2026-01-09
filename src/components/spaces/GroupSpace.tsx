@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Users, TrendingUp, TrendingDown, MoreVertical, Trash2, Pencil } from "lucide-react";
+import { Plus, Users, TrendingUp, TrendingDown, MoreVertical, Trash2, Pencil, LogOut } from "lucide-react";
 import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { EditGroupDialog } from "@/components/EditGroupDialog";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,7 @@ type GroupData = {
   members: { id: string; display_name: string | null; avatar_url: string | null }[];
   totalSpent: number;
   userBalance: number;
+  isAdmin: boolean;
 };
 
 // Avatar colors for member circles
@@ -68,6 +69,39 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [groupToEdit, setGroupToEdit] = useState<Group | null>(null);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [groupToLeave, setGroupToLeave] = useState<Group | null>(null);
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  const handleLeaveGroup = async () => {
+    if (!groupToLeave || !currentUserId) return;
+    setIsLeaving(true);
+    try {
+      const { error } = await supabase
+        .from("group_members")
+        .delete()
+        .eq("group_id", groupToLeave.id)
+        .eq("user_id", currentUserId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Left group",
+        description: `You have left "${groupToLeave.name}".`,
+      });
+      onGroupCreated(); // Refresh groups list
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to leave group.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLeaving(false);
+      setLeaveDialogOpen(false);
+      setGroupToLeave(null);
+    }
+  };
 
   const handleDeleteGroup = async () => {
     if (!groupToDelete) return;
@@ -114,11 +148,15 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
 
       for (const group of groups) {
         try {
-          // Fetch members
+          // Fetch members with role
           const { data: members } = await supabase
             .from("group_members")
-            .select("user_id, profiles(id, display_name, avatar_url)")
+            .select("user_id, role, profiles(id, display_name, avatar_url)")
             .eq("group_id", group.id);
+
+          // Check if current user is admin
+          const currentUserMember = members?.find((m: any) => m.user_id === currentUserId);
+          const isAdmin = currentUserMember?.role === 'admin';
 
           // Fetch expenses
           const { data: expenses } = await supabase
@@ -169,6 +207,7 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
             members: memberProfiles,
             totalSpent,
             userBalance: balance,
+            isAdmin,
           };
         } catch (error) {
           console.error("Error fetching group data:", error);
@@ -177,6 +216,7 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
             members: [],
             totalSpent: 0,
             userBalance: 0,
+            isAdmin: false,
           };
         }
       }
@@ -243,7 +283,7 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {groups.map((group, index) => {
-            const data = groupsData[group.id] || { memberCount: 0, members: [], totalSpent: 0, userBalance: 0 };
+            const data = groupsData[group.id] || { memberCount: 0, members: [], totalSpent: 0, userBalance: 0, isAdmin: false };
             const displayMembers = data.members.slice(0, 4);
             const extraMembers = data.memberCount - 4;
 
@@ -279,25 +319,41 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuItem 
-                          onClick={() => {
-                            setGroupToEdit(group);
-                            setEditDialogOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Edit Group
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => {
-                            setGroupToDelete(group);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete Group
-                        </DropdownMenuItem>
+                        {data.isAdmin && (
+                          <>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                setGroupToEdit(group);
+                                setEditDialogOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit Group
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => {
+                                setGroupToDelete(group);
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Group
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {!data.isAdmin && (
+                          <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => {
+                              setGroupToLeave(group);
+                              setLeaveDialogOpen(true);
+                            }}
+                          >
+                            <LogOut className="h-4 w-4 mr-2" />
+                            Leave Group
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                     {data.userBalance !== 0 && (
@@ -430,6 +486,27 @@ export function GroupSpace({ groups, onGroupCreated }: GroupSpaceProps) {
         onOpenChange={setEditDialogOpen}
         onGroupUpdated={onGroupCreated}
       />
+
+      <AlertDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to leave "{groupToLeave?.name}"? You will no longer have access to this group's expenses and messages.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLeaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLeaveGroup}
+              disabled={isLeaving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isLeaving ? "Leaving..." : "Leave"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
