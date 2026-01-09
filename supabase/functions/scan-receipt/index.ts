@@ -56,7 +56,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Analyzing receipt image with AI for user:", user.id);
+    console.log("Analyzing receipt image with OCR for user:", user.id);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -72,7 +72,25 @@ serve(async (req) => {
             content: [
               {
                 type: "text",
-                text: "Analyze this receipt image and extract the following information: total amount, description/merchant name, and expense category. Return the data in the exact format specified by the tool."
+                text: `You are an expert OCR system specialized in reading receipts and invoices. Carefully analyze this receipt image and extract:
+
+1. TOTAL AMOUNT: Look for "Total", "Grand Total", "Amount Due", "Balance Due", or the final/largest amount. Extract only the numeric value without currency symbols.
+
+2. DATE: Look for transaction date, purchase date, or any date on the receipt. Return in YYYY-MM-DD format. If no date found, return today's date.
+
+3. MERCHANT/DESCRIPTION: Extract the store name, business name, or a brief description of what was purchased. Keep it concise (max 50 characters).
+
+4. CATEGORY: Classify the expense into one of these categories based on the merchant type and items:
+   - Food (restaurants, groceries, cafes)
+   - Transport (fuel, parking, taxi, transit)
+   - Accommodation (hotels, lodging)
+   - Entertainment (movies, events, games)
+   - Shopping (retail, clothing, electronics)
+   - Utilities (bills, subscriptions)
+   - Healthcare (pharmacy, medical)
+   - Other (anything else)
+
+Be precise with the amount - extract the final total, not subtotals or individual items. Use OCR to read all text carefully.`
               },
               {
                 type: "image_url",
@@ -88,24 +106,29 @@ serve(async (req) => {
             type: "function",
             function: {
               name: "extract_receipt_data",
-              description: "Extract structured receipt information from the image",
+              description: "Extract structured receipt information using OCR",
               parameters: {
                 type: "object",
                 properties: {
                   amount: {
                     type: "number",
-                    description: "The total amount from the receipt"
+                    description: "The total/final amount from the receipt (numeric value only, no currency symbols)"
                   },
                   description: {
                     type: "string",
-                    description: "The merchant name or description of the expense"
+                    description: "The merchant name or brief description of the expense (max 50 characters)"
                   },
                   category: {
                     type: "string",
-                    description: "The expense category (e.g., Food, Transport, Accommodation, Entertainment, Shopping, Other)"
+                    enum: ["Food", "Transport", "Accommodation", "Entertainment", "Shopping", "Utilities", "Healthcare", "Other"],
+                    description: "The expense category"
+                  },
+                  date: {
+                    type: "string",
+                    description: "The transaction date in YYYY-MM-DD format"
                   }
                 },
-                required: ["amount", "description", "category"],
+                required: ["amount", "description", "category", "date"],
                 additionalProperties: false
               }
             }

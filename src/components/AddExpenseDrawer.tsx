@@ -64,6 +64,7 @@ export function AddExpenseDrawer({
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [splitType, setSplitType] = useState<SplitType>("equal");
   const [customSplits, setCustomSplits] = useState<CustomSplit>({});
@@ -206,7 +207,7 @@ export function AddExpenseDrawer({
           currency: groupCurrency,
           category: category.trim() || null,
           paid_by: user.id,
-          expense_date: new Date().toISOString(),
+          expense_date: expenseDate,
         })
         .select()
         .single();
@@ -245,6 +246,7 @@ export function AddExpenseDrawer({
       setDescription("");
       setAmount("");
       setCategory("");
+      setExpenseDate(new Date().toISOString().split('T')[0]);
       setSelectedMembers(new Set());
       setSplitType("equal");
       setCustomSplits({});
@@ -320,10 +322,13 @@ export function AddExpenseDrawer({
         setDescription(data.description || "");
         setAmount(data.amount?.toString() || "");
         setCategory(data.category || "");
+        if (data.date) {
+          setExpenseDate(data.date);
+        }
         
         toast({
           title: "Receipt scanned!",
-          description: "Expense details have been filled automatically",
+          description: "Expense details extracted automatically using OCR",
         });
       } else {
         toast({
@@ -417,6 +422,20 @@ export function AddExpenseDrawer({
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              className="h-12 text-base"
+            />
+          </div>
+
+          {/* Date */}
+          <div className="space-y-2">
+            <Label htmlFor="expenseDate" className="text-base">
+              Date
+            </Label>
+            <Input
+              id="expenseDate"
+              type="date"
+              value={expenseDate}
+              onChange={(e) => setExpenseDate(e.target.value)}
               className="h-12 text-base"
             />
           </div>
