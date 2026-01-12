@@ -68,6 +68,7 @@ export function AddExpenseDrawer({
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [splitType, setSplitType] = useState<SplitType>("equal");
   const [customSplits, setCustomSplits] = useState<CustomSplit>({});
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
 
   const calculateSplitAmounts = (): { userId: string; amount: number }[] => {
     const totalAmount = parseFloat(amount);
@@ -197,6 +198,30 @@ export function AddExpenseDrawer({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Upload receipt image if available
+      let receiptUrl: string | null = null;
+      if (receiptImage) {
+        const fileName = `${user.id}/${crypto.randomUUID()}.jpg`;
+        const base64Data = receiptImage.split(',')[1];
+        const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('receipts')
+          .upload(fileName, binaryData, {
+            contentType: 'image/jpeg',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error("Failed to upload receipt:", uploadError);
+        } else {
+          const { data: urlData } = supabase.storage
+            .from('receipts')
+            .getPublicUrl(fileName);
+          receiptUrl = urlData.publicUrl;
+        }
+      }
+
       // Create expense
       const { data: expense, error: expenseError } = await supabase
         .from("expenses")
@@ -208,6 +233,7 @@ export function AddExpenseDrawer({
           category: category.trim() || null,
           paid_by: user.id,
           expense_date: expenseDate,
+          receipt_url: receiptUrl,
         })
         .select()
         .single();
@@ -250,6 +276,7 @@ export function AddExpenseDrawer({
       setSelectedMembers(new Set());
       setSplitType("equal");
       setCustomSplits({});
+      setReceiptImage(null);
       onOpenChange(false);
       onExpenseAdded();
     } catch (error: any) {
@@ -307,6 +334,9 @@ export function AddExpenseDrawer({
     try {
       setScanning(true);
       setShowCamera(false);
+      
+      // Store receipt image for later upload
+      setReceiptImage(imageData);
 
       console.log("Invoking scan-receipt function...");
       const { data, error } = await supabase.functions.invoke("scan-receipt", {
@@ -328,7 +358,7 @@ export function AddExpenseDrawer({
         
         toast({
           title: "Receipt scanned!",
-          description: "Expense details extracted automatically using OCR",
+          description: "Expense details extracted. Receipt will be saved with expense.",
         });
       } else {
         toast({
