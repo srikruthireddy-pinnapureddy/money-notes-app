@@ -185,6 +185,30 @@ export function BatchReceiptScanner({
       for (const receipt of successfulReceipts) {
         if (!receipt.data) continue;
 
+        // Upload receipt image to storage
+        let receiptUrl: string | null = null;
+        try {
+          const fileName = `${user.id}/${crypto.randomUUID()}.jpg`;
+          const base64Data = receipt.imageUrl.split(',')[1];
+          const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('receipts')
+            .upload(fileName, binaryData, {
+              contentType: 'image/jpeg',
+              upsert: false,
+            });
+
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage
+              .from('receipts')
+              .getPublicUrl(fileName);
+            receiptUrl = urlData.publicUrl;
+          }
+        } catch (uploadErr) {
+          console.error("Failed to upload receipt image:", uploadErr);
+        }
+
         // Create expense
         const { data: expense, error: expenseError } = await supabase
           .from("expenses")
@@ -196,6 +220,7 @@ export function BatchReceiptScanner({
             category: receipt.data.category,
             paid_by: user.id,
             expense_date: receipt.data.date,
+            receipt_url: receiptUrl,
           })
           .select()
           .single();
@@ -230,7 +255,7 @@ export function BatchReceiptScanner({
 
       toast({
         title: "Expenses created!",
-        description: `Successfully created ${createdCount} expense${createdCount > 1 ? "s" : ""}`,
+        description: `Successfully created ${createdCount} expense${createdCount > 1 ? "s" : ""} with receipts attached`,
       });
 
       setReceipts([]);

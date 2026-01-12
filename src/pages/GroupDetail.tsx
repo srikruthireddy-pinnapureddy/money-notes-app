@@ -14,8 +14,15 @@ import {
   Loader2,
   TrendingUp,
   DollarSign,
-  Images
+  Images,
+  Image as ImageIcon
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AddExpenseDrawer } from "@/components/AddExpenseDrawer";
 import { BatchReceiptScanner } from "@/components/BatchReceiptScanner";
 import { GroupInviteDialog } from "@/components/GroupInviteDialog";
@@ -54,6 +61,7 @@ type Expense = {
   expense_date: string;
   category: string | null;
   paid_by: string;
+  receipt_url: string | null;
   profiles: {
     display_name: string;
   };
@@ -86,6 +94,7 @@ const GroupDetail = () => {
   const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
   const [deleteExpenseDesc, setDeleteExpenseDesc] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
 
   // Initial data fetch
   useEffect(() => {
@@ -467,9 +476,21 @@ const GroupDetail = () => {
                   <Card key={expense.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">
-                          {expense.description}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm truncate">
+                            {expense.description}
+                          </p>
+                          {expense.receipt_url && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => setViewReceiptUrl(expense.receipt_url)}
+                            >
+                              <ImageIcon className="h-4 w-4 text-primary" />
+                            </Button>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           Paid by {expense.profiles.display_name}
                         </p>
@@ -611,6 +632,24 @@ const GroupDetail = () => {
         expenseDescription={deleteExpenseDesc}
         onExpenseDeleted={fetchGroupData}
       />
+
+      {/* Receipt Viewer Dialog */}
+      <Dialog open={viewReceiptUrl !== null} onOpenChange={(open) => !open && setViewReceiptUrl(null)}>
+        <DialogContent className="max-w-lg p-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle>Receipt</DialogTitle>
+          </DialogHeader>
+          <div className="p-4">
+            {viewReceiptUrl && (
+              <img
+                src={viewReceiptUrl}
+                alt="Receipt"
+                className="w-full max-h-[70vh] object-contain rounded-lg"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
