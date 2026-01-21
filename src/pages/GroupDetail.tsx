@@ -95,6 +95,30 @@ const GroupDetail = () => {
   const [deleteExpenseDesc, setDeleteExpenseDesc] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
+  const [loadingReceiptUrl, setLoadingReceiptUrl] = useState(false);
+
+  // Generate signed URL for viewing receipt
+  const viewReceipt = async (receiptPath: string | null) => {
+    if (!receiptPath) return;
+    
+    setLoadingReceiptUrl(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from('receipts')
+        .createSignedUrl(receiptPath, 3600); // 1 hour expiry
+      
+      if (error) throw error;
+      setViewReceiptUrl(data.signedUrl);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to load receipt image",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingReceiptUrl(false);
+    }
+  };
 
   // Initial data fetch
   useEffect(() => {
@@ -485,9 +509,14 @@ const GroupDetail = () => {
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0"
-                              onClick={() => setViewReceiptUrl(expense.receipt_url)}
+                              onClick={() => viewReceipt(expense.receipt_url)}
+                              disabled={loadingReceiptUrl}
                             >
-                              <ImageIcon className="h-4 w-4 text-primary" />
+                              {loadingReceiptUrl ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                              ) : (
+                                <ImageIcon className="h-4 w-4 text-primary" />
+                              )}
                             </Button>
                           )}
                         </div>

@@ -198,14 +198,14 @@ export function AddExpenseDrawer({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Upload receipt image if available
+      // Upload receipt image if available (store file path, not URL)
       let receiptUrl: string | null = null;
       if (receiptImage) {
         const fileName = `${user.id}/${crypto.randomUUID()}.jpg`;
         const base64Data = receiptImage.split(',')[1];
         const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
         
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('receipts')
           .upload(fileName, binaryData, {
             contentType: 'image/jpeg',
@@ -215,10 +215,8 @@ export function AddExpenseDrawer({
         if (uploadError) {
           console.error("Failed to upload receipt:", uploadError);
         } else {
-          const { data: urlData } = supabase.storage
-            .from('receipts')
-            .getPublicUrl(fileName);
-          receiptUrl = urlData.publicUrl;
+          // Store the file path for signed URL generation later
+          receiptUrl = fileName;
         }
       }
 

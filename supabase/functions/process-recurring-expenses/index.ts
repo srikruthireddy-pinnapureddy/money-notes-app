@@ -15,6 +15,7 @@ interface RecurringExpense {
   currency: string;
   frequency: string;
   next_occurrence: string;
+  last_processed_at: string | null;
   split_config: { user_id: string; share: number }[];
 }
 
@@ -46,8 +47,49 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
+
+    // Validate authentication - require either a valid JWT or a secret API key
+    const authHeader = req.headers.get("Authorization");
+    const apiKeyHeader = req.headers.get("X-API-Key");
+    const expectedApiKey = Deno.env.get("RECURRING_EXPENSES_API_KEY");
+
+    // Option 1: Validate JWT token (for authenticated user calls)
+    if (authHeader?.startsWith("Bearer ")) {
+      const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+      
+      if (claimsError || !claimsData?.claims) {
+        console.error("Invalid JWT token:", claimsError);
+        return new Response(
+          JSON.stringify({ success: false, error: "Unauthorized - invalid token" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Optionally check for admin role
+      const userId = claimsData.claims.sub;
+      console.log(`Authenticated request from user: ${userId}`);
+    } 
+    // Option 2: Validate API key (for scheduled/cron calls)
+    else if (apiKeyHeader && expectedApiKey && apiKeyHeader === expectedApiKey) {
+      console.log("Authenticated via API key for scheduled execution");
+    } 
+    // No valid authentication
+    else {
+      console.error("No valid authentication provided");
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized - authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Use service role for database operations (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const today = new Date().toISOString().split("T")[0];
@@ -73,6 +115,15 @@ Deno.serve(async (req) => {
 
     for (const expense of (dueExpenses || []) as RecurringExpense[]) {
       try {
+        // Add idempotency check - skip if already processed today
+        if (expense.last_processed_at) {
+          const lastProcessed = new Date(expense.last_processed_at).toISOString().split("T")[0];
+          if (lastProcessed === today) {
+            console.log(`Skipping expense ${expense.id} - already processed today`);
+            continue;
+          }
+        }
+
         // Create the expense
         const { data: newExpense, error: expenseError } = await supabase
           .from("expenses")
