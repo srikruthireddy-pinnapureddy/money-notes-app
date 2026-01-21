@@ -192,7 +192,7 @@ export function BatchReceiptScanner({
           const base64Data = receipt.imageUrl.split(',')[1];
           const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
           
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('receipts')
             .upload(fileName, binaryData, {
               contentType: 'image/jpeg',
@@ -200,10 +200,8 @@ export function BatchReceiptScanner({
             });
 
           if (!uploadError) {
-            const { data: urlData } = supabase.storage
-              .from('receipts')
-              .getPublicUrl(fileName);
-            receiptUrl = urlData.publicUrl;
+            // Store the file path for signed URL generation later
+            receiptUrl = fileName;
           }
         } catch (uploadErr) {
           console.error("Failed to upload receipt image:", uploadErr);

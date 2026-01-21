@@ -138,17 +138,14 @@ export function EditExpenseDrawer({
       const blob = new Blob([byteArray], { type: mimeType });
       const fileName = `${expenseId}-${Date.now()}.${extension}`;
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('receipts')
         .upload(fileName, blob, { contentType: mimeType, upsert: true });
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('receipts')
-        .getPublicUrl(fileName);
-
-      return urlData.publicUrl;
+      // Return the file path for signed URL generation later
+      return fileName;
     } catch (error) {
       console.error('Error uploading receipt:', error);
       return null;
