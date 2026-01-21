@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/drawer";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Camera, ImageIcon, X, Check } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -23,7 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { z } from "zod";
-
 type Member = {
   id: string;
   user_id: string;
@@ -36,6 +35,7 @@ type Expense = {
   description: string;
   amount: number;
   category: string | null;
+  receipt_url: string | null;
   expense_splits: Array<{
     user_id: string;
     amount: number;
@@ -73,12 +73,17 @@ export function EditExpenseDrawer({
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [splitType, setSplitType] = useState<SplitType>("equal");
   const [customSplits, setCustomSplits] = useState<CustomSplit>({});
-
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [newReceiptImage, setNewReceiptImage] = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (expense) {
       setDescription(expense.description);
       setAmount(expense.amount.toString());
       setCategory(expense.category || "");
+      setReceiptUrl(expense.receipt_url);
+      setNewReceiptImage(null);
       
       const memberIds = expense.expense_splits.map(s => s.user_id);
       setSelectedMembers(new Set(memberIds));
@@ -101,6 +106,59 @@ export function EditExpenseDrawer({
       }
     }
   }, [expense]);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Convert to base64 for preview
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setNewReceiptImage(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadReceiptImage = async (base64Image: string, expenseId: string): Promise<string | null> => {
+    try {
+      // Extract the base64 data
+      const base64Data = base64Image.split(',')[1];
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      
+      // Determine file type
+      const mimeType = base64Image.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
+      const extension = mimeType.split('/')[1] || 'jpg';
+      
+      const blob = new Blob([byteArray], { type: mimeType });
+      const fileName = `${expenseId}-${Date.now()}.${extension}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('receipts')
+        .upload(fileName, blob, { contentType: mimeType, upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('receipts')
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Error uploading receipt:', error);
+      return null;
+    }
+  };
+
+  const removeReceipt = () => {
+    setReceiptUrl(null);
+    setNewReceiptImage(null);
+  };
 
   const calculateSplitAmounts = (): { userId: string; amount: number }[] => {
     const totalAmount = parseFloat(amount);
@@ -229,6 +287,17 @@ export function EditExpenseDrawer({
     try {
       setLoading(true);
 
+      // Upload new receipt if one was added
+      let finalReceiptUrl = receiptUrl;
+      if (newReceiptImage) {
+        setUploadingReceipt(true);
+        const uploadedUrl = await uploadReceiptImage(newReceiptImage, expense.id);
+        if (uploadedUrl) {
+          finalReceiptUrl = uploadedUrl;
+        }
+        setUploadingReceipt(false);
+      }
+
       // Update expense
       const { error: expenseError } = await supabase
         .from("expenses")
@@ -236,6 +305,7 @@ export function EditExpenseDrawer({
           description: description.trim(),
           amount: parseFloat(amount),
           category: category.trim() || null,
+          receipt_url: finalReceiptUrl,
         })
         .eq("id", expense.id);
 
@@ -277,6 +347,7 @@ export function EditExpenseDrawer({
       });
     } finally {
       setLoading(false);
+      setUploadingReceipt(false);
     }
   };
 
@@ -373,6 +444,61 @@ export function EditExpenseDrawer({
               onChange={(e) => setCategory(e.target.value)}
               className="h-12 text-base"
             />
+          </div>
+
+          {/* Receipt Attachment */}
+          <div className="space-y-3">
+            <Label className="text-base">Receipt Image</Label>
+            
+            {(receiptUrl || newReceiptImage) ? (
+              <div className="relative border rounded-lg p-3 bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted">
+                    <img 
+                      src={newReceiptImage || receiptUrl!} 
+                      alt="Receipt" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium flex items-center gap-1">
+                      <Check className="h-4 w-4 text-primary" />
+                      {newReceiptImage ? "New receipt attached" : "Receipt attached"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {newReceiptImage ? "Will be uploaded on save" : "Click to view or replace"}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={removeReceipt}
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 h-12"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  Attach Receipt
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Split with members */}
@@ -481,12 +607,12 @@ export function EditExpenseDrawer({
         <DrawerFooter className="safe-bottom">
           <Button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || uploadingReceipt}
             size="lg"
             className="h-14 text-base"
           >
-            {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-            Save Changes
+            {(loading || uploadingReceipt) && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+            {uploadingReceipt ? "Uploading Receipt..." : "Save Changes"}
           </Button>
           <DrawerClose asChild>
             <Button variant="outline" size="lg" className="h-14 text-base">
