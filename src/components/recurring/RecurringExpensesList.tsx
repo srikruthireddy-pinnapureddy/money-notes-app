@@ -11,7 +11,8 @@ import {
   Trash2, 
   Loader2,
   Calendar,
-  Users
+  Users,
+  Play
 } from "lucide-react";
 import { RecurringExpenseDialog } from "./RecurringExpenseDialog";
 import {
@@ -60,6 +61,7 @@ export function RecurringExpensesList({
 }: RecurringExpensesListProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
   const [expenses, setExpenses] = useState<RecurringExpense[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editExpense, setEditExpense] = useState<RecurringExpense | null>(null);
@@ -171,6 +173,37 @@ export function RecurringExpensesList({
     });
   };
 
+  const handleProcessNow = async () => {
+    try {
+      setProcessing(true);
+      
+      const { data, error } = await supabase.functions.invoke("process-recurring-expenses", {
+        method: "POST",
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: "Processing Complete",
+          description: data.message || "Recurring expenses have been processed",
+        });
+        // Refresh the list to show updated next_occurrence dates
+        fetchRecurringExpenses();
+      } else {
+        throw new Error(data?.error || "Processing failed");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process recurring expenses",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="p-6">
@@ -189,12 +222,29 @@ export function RecurringExpensesList({
             <Repeat className="h-5 w-5" />
             Recurring Expenses
           </h2>
-          <Button size="sm" onClick={() => {
-            setEditExpense(null);
-            setDialogOpen(true);
-          }}>
-            + Add
-          </Button>
+          <div className="flex gap-2">
+            {expenses.length > 0 && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handleProcessNow}
+                disabled={processing}
+              >
+                {processing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Play className="h-4 w-4 mr-1" />
+                )}
+                Process Now
+              </Button>
+            )}
+            <Button size="sm" onClick={() => {
+              setEditExpense(null);
+              setDialogOpen(true);
+            }}>
+              + Add
+            </Button>
+          </div>
         </div>
 
         {expenses.length === 0 ? (
