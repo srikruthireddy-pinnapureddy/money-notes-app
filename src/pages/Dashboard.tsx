@@ -11,7 +11,7 @@ import { GroupSpace, PersonalSpace } from "@/components/spaces";
 import { SpendingCategoryChart } from "@/components/SpendingCategoryChart";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { AnimatedCounter } from "@/components/investments/AnimatedCounter";
-import { OnboardingFlow } from "@/components/onboarding";
+// Onboarding is now handled at App level
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -54,7 +54,7 @@ const Dashboard = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [totalBalance, setTotalBalance] = useState<number>(0);
   const [investmentsValue, setInvestmentsValue] = useState<number>(0);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  // Onboarding is now handled at App level
   const [spendingTrend, setSpendingTrend] = useState<{ current: number; previous: number; percentChange: number }>({
     current: 0,
     previous: 0,
@@ -123,25 +123,13 @@ const Dashboard = () => {
       } else {
         fetchGroups();
         fetchQuickStats();
-        // Check if user has completed onboarding
-        checkOnboardingStatus();
       }
       setLoading(false);
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const checkOnboardingStatus = () => {
-    const hasCompletedOnboarding = localStorage.getItem("expenx_onboarding_complete");
-    if (!hasCompletedOnboarding) {
-      setShowOnboarding(true);
-    }
-  };
-
-  const handleOnboardingComplete = () => {
-    localStorage.setItem("expenx_onboarding_complete", "true");
-    setShowOnboarding(false);
-  };
+  // Onboarding is now handled at App level
   const fetchGroups = async () => {
     try {
       const {
@@ -584,11 +572,6 @@ const Dashboard = () => {
       </main>
 
       {showScanner && <BarcodeScanner onScan={handleBarcodeScan} onClose={() => setShowScanner(false)} />}
-
-      {/* Onboarding Flow */}
-      <AnimatePresence>
-        {showOnboarding && <OnboardingFlow onComplete={handleOnboardingComplete} />}
-      </AnimatePresence>
     </div>;
 };
 export default Dashboard;
