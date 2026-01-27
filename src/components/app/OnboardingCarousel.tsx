@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { createDemoTransactions } from "@/utils/demoData";
+import { triggerHapticFeedback } from "@/utils/haptics";
 import { 
   Receipt, 
   Users, 
@@ -51,12 +52,21 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
   const slide = slides[currentIndex];
   const Icon = slide.icon;
 
+  const goToSlide = useCallback((index: number) => {
+    if (index !== currentIndex) {
+      setDirection(index > currentIndex ? 1 : -1);
+      setCurrentIndex(index);
+      triggerHapticFeedback("light");
+    }
+  }, [currentIndex]);
+
   const handleNext = () => {
     if (isLastSlide) {
       finish();
     } else {
       setDirection(1);
       setCurrentIndex((prev) => prev + 1);
+      triggerHapticFeedback("light");
     }
   };
 
@@ -64,6 +74,7 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
     if (currentIndex > 0) {
       setDirection(-1);
       setCurrentIndex((prev) => prev - 1);
+      triggerHapticFeedback("light");
     }
   };
 
@@ -121,12 +132,14 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
       if (!isLastSlide) {
         setDirection(1);
         setCurrentIndex((prev) => prev + 1);
+        triggerHapticFeedback("medium");
       }
     } else if (swipe > swipeConfidenceThreshold) {
       // Swiped right - go prev
       if (currentIndex > 0) {
         setDirection(-1);
         setCurrentIndex((prev) => prev - 1);
+        triggerHapticFeedback("medium");
       }
     }
   };
@@ -274,10 +287,7 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
           {slides.map((_, index) => (
             <motion.button
               key={index}
-              onClick={() => {
-                setDirection(index > currentIndex ? 1 : -1);
-                setCurrentIndex(index);
-              }}
+              onClick={() => goToSlide(index)}
               className={`h-2 rounded-full transition-all duration-300 ${
                 index === currentIndex 
                   ? "w-8 bg-primary" 
