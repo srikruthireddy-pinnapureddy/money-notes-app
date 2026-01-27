@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 // VAPID public key - this is safe to expose in client code
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+const VAPID_PUBLIC_KEY = 'BCQVq2TaMpDYWeaDzKEs3WstCwy2MJ74u9Y10xfyCmZGgeI_3ch57PnVcHiBnXRaTew-HK0SV4-ZkW6tJwFBctY';
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
