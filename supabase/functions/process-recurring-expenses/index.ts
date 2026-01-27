@@ -5,6 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limit configuration: 5 requests per minute (this is a batch operation)
+const RATE_LIMIT_MAX_REQUESTS = 5;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+
 interface RecurringExpense {
   id: string;
   group_id: string;
@@ -19,9 +23,42 @@ interface RecurringExpense {
   split_config: { user_id: string; share: number }[];
 }
 
+async function checkRateLimit(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  identifier: string,
+  endpoint: string
+): Promise<{ allowed: boolean; remaining: number; retryAfter?: number }> {
+  try {
+    const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data, error } = await serviceClient.rpc("check_rate_limit", {
+      p_identifier: identifier,
+      p_endpoint: endpoint,
+      p_max_requests: RATE_LIMIT_MAX_REQUESTS,
+      p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+    } as Record<string, unknown>);
+
+    if (error) {
+      console.error("Rate limit check error:", error);
+      return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS };
+    }
+
+    const result = data as { allowed: boolean; remaining: number; retry_after?: number };
+    return {
+      allowed: result.allowed,
+      remaining: result.remaining,
+      retryAfter: result.retry_after,
+    };
+  } catch (error) {
+    console.error("Rate limit exception:", error);
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS };
+  }
+}
+
 function calculateNextOccurrence(currentDate: string, frequency: string): string {
   const date = new Date(currentDate);
-  
+
   switch (frequency) {
     case "daily":
       date.setDate(date.getDate() + 1);
@@ -36,7 +73,7 @@ function calculateNextOccurrence(currentDate: string, frequency: string): string
       date.setFullYear(date.getFullYear() + 1);
       break;
   }
-  
+
   return date.toISOString().split("T")[0];
 }
 
@@ -55,15 +92,18 @@ Deno.serve(async (req) => {
     const apiKeyHeader = req.headers.get("X-API-Key");
     const expectedApiKey = Deno.env.get("RECURRING_EXPENSES_API_KEY");
 
+    let rateLimitIdentifier = "system";
+
     // Option 1: Validate JWT token (for authenticated user calls)
     if (authHeader?.startsWith("Bearer ")) {
       const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
+        global: { headers: { Authorization: authHeader } },
       });
 
       const token = authHeader.replace("Bearer ", "");
-      const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
-      
+      const { data: claimsData, error: claimsError } =
+        await supabaseClient.auth.getClaims(token);
+
       if (claimsError || !claimsData?.claims) {
         console.error("Invalid JWT token:", claimsError);
         return new Response(
@@ -72,14 +112,15 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Optionally check for admin role
-      const userId = claimsData.claims.sub;
-      console.log(`Authenticated request from user: ${userId}`);
-    } 
+      // Use user ID for rate limiting
+      rateLimitIdentifier = claimsData.claims.sub as string;
+      console.log(`Authenticated request from user: ${rateLimitIdentifier}`);
+    }
     // Option 2: Validate API key (for scheduled/cron calls)
     else if (apiKeyHeader && expectedApiKey && apiKeyHeader === expectedApiKey) {
       console.log("Authenticated via API key for scheduled execution");
-    } 
+      rateLimitIdentifier = "cron-job";
+    }
     // No valid authentication
     else {
       console.error("No valid authentication provided");
@@ -91,6 +132,36 @@ Deno.serve(async (req) => {
 
     // Use service role for database operations (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Rate limiting check
+    const rateLimitResult = await checkRateLimit(
+      supabaseUrl,
+      supabaseServiceKey,
+      rateLimitIdentifier,
+      "process-recurring-expenses"
+    );
+
+    if (!rateLimitResult.allowed) {
+      console.warn(
+        `Rate limit exceeded for ${rateLimitIdentifier} on process-recurring-expenses`
+      );
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Rate limit exceeded. Please try again later.",
+          retryAfter: rateLimitResult.retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimitResult.retryAfter || 60),
+            "X-RateLimit-Remaining": "0",
+          },
+        }
+      );
+    }
 
     const today = new Date().toISOString().split("T")[0];
 
@@ -117,7 +188,9 @@ Deno.serve(async (req) => {
       try {
         // Add idempotency check - skip if already processed today
         if (expense.last_processed_at) {
-          const lastProcessed = new Date(expense.last_processed_at).toISOString().split("T")[0];
+          const lastProcessed = new Date(expense.last_processed_at)
+            .toISOString()
+            .split("T")[0];
           if (lastProcessed === today) {
             console.log(`Skipping expense ${expense.id} - already processed today`);
             continue;
@@ -160,8 +233,11 @@ Deno.serve(async (req) => {
         }
 
         // Update next occurrence
-        const nextOccurrence = calculateNextOccurrence(expense.next_occurrence, expense.frequency);
-        
+        const nextOccurrence = calculateNextOccurrence(
+          expense.next_occurrence,
+          expense.frequency
+        );
+
         const { error: updateError } = await supabase
           .from("recurring_expenses")
           .update({
@@ -217,7 +293,11 @@ Deno.serve(async (req) => {
         results,
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "X-RateLimit-Remaining": String(rateLimitResult.remaining),
+        },
       }
     );
   } catch (error: unknown) {
