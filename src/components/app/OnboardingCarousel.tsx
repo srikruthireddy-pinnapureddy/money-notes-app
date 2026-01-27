@@ -108,6 +108,29 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
     }),
   };
 
+  const swipeConfidenceThreshold = 10000;
+  const swipePower = (offset: number, velocity: number) => {
+    return Math.abs(offset) * velocity;
+  };
+
+  const handleDragEnd = (e: MouseEvent | TouchEvent | PointerEvent, { offset, velocity }: { offset: { x: number }; velocity: { x: number } }) => {
+    const swipe = swipePower(offset.x, velocity.x);
+
+    if (swipe < -swipeConfidenceThreshold) {
+      // Swiped left - go next
+      if (!isLastSlide) {
+        setDirection(1);
+        setCurrentIndex((prev) => prev + 1);
+      }
+    } else if (swipe > swipeConfidenceThreshold) {
+      // Swiped right - go prev
+      if (currentIndex > 0) {
+        setDirection(-1);
+        setCurrentIndex((prev) => prev - 1);
+      }
+    }
+  };
+
   // Micro-animation components for each slide
   const renderIllustration = () => {
     switch (slide.illustration) {
@@ -202,7 +225,11 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
             animate="center"
             exit="exit"
             transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="text-center w-full"
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={1}
+            onDragEnd={handleDragEnd}
+            className="text-center w-full cursor-grab active:cursor-grabbing touch-pan-y"
             aria-live="polite"
           >
             {/* Icon */}
