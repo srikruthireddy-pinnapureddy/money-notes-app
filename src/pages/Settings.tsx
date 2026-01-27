@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, User, Mail, Phone, Save, Download, Shield, Sun, Moon, Monitor, Palette, FileText } from "lucide-react";
+import { ArrowLeft, Loader2, User, Mail, Phone, Save, Download, Shield, Sun, Moon, Monitor, Palette, FileText, Bell } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
 import { z } from "zod";
 import { ExportReportsDialog } from "@/components/reports";
+import { PushNotificationToggle } from "@/components/notifications";
 
 const profileSchema = z.object({
   displayName: z.string().trim().max(50, "Display name must be 50 characters or less").optional(),
@@ -334,6 +335,22 @@ const Settings = () => {
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Notifications */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Notifications
+            </CardTitle>
+            <CardDescription>
+              Configure how you receive notifications
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PushNotificationToggle />
           </CardContent>
         </Card>
 

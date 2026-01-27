@@ -31,6 +31,14 @@ export async function createNotification({
   if (error) {
     console.error('Error creating notification:', error);
   }
+
+  // Trigger push notification for single user
+  await sendPushNotification([userId], {
+    title,
+    message,
+    type,
+    groupId
+  });
 }
 
 export async function notifyGroupMembers({
@@ -78,5 +86,34 @@ export async function notifyGroupMembers({
     if (error) {
       console.error('Error creating notifications:', error);
     }
+
+    // Trigger push notifications for all members
+    const userIds = members.map(m => m.user_id);
+    await sendPushNotification(userIds, {
+      title,
+      message,
+      type,
+      groupId
+    });
+  }
+}
+
+interface PushPayload {
+  title: string;
+  message: string;
+  type?: string;
+  groupId?: string;
+  url?: string;
+}
+
+async function sendPushNotification(userIds: string[], payload: PushPayload) {
+  try {
+    // Call edge function to send push notifications
+    await supabase.functions.invoke('send-push-notification', {
+      body: { userIds, payload }
+    });
+  } catch (error) {
+    // Don't throw - push notifications are optional
+    console.log('Push notification skipped:', error);
   }
 }
