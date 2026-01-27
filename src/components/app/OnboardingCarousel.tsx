@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { createDemoTransactions } from "@/utils/demoData";
 import { 
   Receipt, 
   Users, 
   LineChart,
   ChevronRight,
   ChevronLeft,
-  Sparkles
+  Sparkles,
+  Loader2
 } from "lucide-react";
 
 interface OnboardingCarouselProps {
@@ -41,6 +44,8 @@ const slides = [
 export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(1);
+  const [isCreatingDemo, setIsCreatingDemo] = useState(false);
+  const { toast } = useToast();
 
   const isLastSlide = currentIndex === slides.length - 1;
   const slide = slides[currentIndex];
@@ -62,8 +67,23 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
     }
   };
 
-  const finish = () => {
+  const finish = async () => {
+    setIsCreatingDemo(true);
+    
+    try {
+      const created = await createDemoTransactions();
+      if (created) {
+        toast({
+          title: "Welcome to ExpenX!",
+          description: "We've added some sample transactions to help you get started.",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating demo data:", error);
+    }
+    
     localStorage.setItem("hasOnboarded", "true");
+    setIsCreatingDemo(false);
     onComplete();
   };
 
@@ -251,10 +271,20 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
               <Button
                 size="lg"
                 onClick={finish}
+                disabled={isCreatingDemo}
                 className="min-w-[160px] h-12 text-base gap-2 shadow-lg shadow-primary/20"
               >
-                <Sparkles className="h-4 w-4" />
-                Get Started
+                {isCreatingDemo ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Setting up...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Get Started
+                  </>
+                )}
               </Button>
             </>
           ) : (
