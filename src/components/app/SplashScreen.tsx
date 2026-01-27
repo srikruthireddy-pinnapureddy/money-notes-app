@@ -25,6 +25,8 @@ export function SplashScreen({ durationMs = 2500, onFinish }: SplashScreenProps)
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
+      role="region"
+      aria-label="Loading ExpenX"
       className="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-gray-900 dark:to-purple-950"
     >
       {/* Glow effect behind logo */}
