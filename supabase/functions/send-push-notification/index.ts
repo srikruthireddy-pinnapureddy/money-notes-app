@@ -5,6 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limit configuration: 30 push notification requests per minute
+const RATE_LIMIT_MAX_REQUESTS = 30;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+
 interface PushPayload {
   title: string;
   message: string;
@@ -17,6 +21,39 @@ interface PushPayload {
 interface SendPushRequest {
   userIds: string[];
   payload: PushPayload;
+}
+
+async function checkRateLimit(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  identifier: string,
+  endpoint: string
+): Promise<{ allowed: boolean; remaining: number; retryAfter?: number }> {
+  try {
+    const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data, error } = await serviceClient.rpc("check_rate_limit", {
+      p_identifier: identifier,
+      p_endpoint: endpoint,
+      p_max_requests: RATE_LIMIT_MAX_REQUESTS,
+      p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+    } as Record<string, unknown>);
+
+    if (error) {
+      console.error("Rate limit check error:", error);
+      return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS };
+    }
+
+    const result = data as { allowed: boolean; remaining: number; retry_after?: number };
+    return {
+      allowed: result.allowed,
+      remaining: result.remaining,
+      retryAfter: result.retry_after,
+    };
+  } catch (error) {
+    console.error("Rate limit exception:", error);
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS };
+  }
 }
 
 Deno.serve(async (req) => {
@@ -56,7 +93,7 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-    
+
     if (claimsError || !claimsData?.claims) {
       console.error("Failed to verify caller:", claimsError);
       return new Response(
@@ -70,6 +107,28 @@ Deno.serve(async (req) => {
 
     // Create service client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Rate limiting check
+    const rateLimitResult = await checkRateLimit(supabaseUrl, supabaseServiceKey, callerId, "send-push-notification");
+
+    if (!rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for user ${callerId} on send-push-notification`);
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please try again later.",
+          retryAfter: rateLimitResult.retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimitResult.retryAfter || 60),
+            "X-RateLimit-Remaining": "0",
+          },
+        }
+      );
+    }
 
     const { userIds, payload }: SendPushRequest = await req.json();
 
@@ -146,7 +205,13 @@ Deno.serve(async (req) => {
       console.log("No valid target users found for push notifications");
       return new Response(
         JSON.stringify({ success: true, sent: 0, message: "No valid recipients" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "X-RateLimit-Remaining": String(rateLimitResult.remaining),
+          },
+        }
       );
     }
 
@@ -170,7 +235,13 @@ Deno.serve(async (req) => {
       console.log("No push subscriptions found for validated users:", validatedUserIds);
       return new Response(
         JSON.stringify({ success: true, sent: 0, message: "No subscriptions found" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "X-RateLimit-Remaining": String(rateLimitResult.remaining),
+          },
+        }
       );
     }
 
@@ -187,11 +258,6 @@ Deno.serve(async (req) => {
       return { userId: sub.user_id, queued: true };
     });
 
-    // Create in-app notifications for users who have push subscriptions
-    // This ensures they get notified even if push delivery fails
-    // Note: Notifications are already created by the calling code
-    // This edge function is for future web push implementation
-
     console.log(`Push notifications queued for ${results.length} user(s) by caller ${callerId}`);
 
     return new Response(
@@ -201,7 +267,13 @@ Deno.serve(async (req) => {
         total: subscriptions.length,
         message: "Push notifications processed",
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "X-RateLimit-Remaining": String(rateLimitResult.remaining),
+        },
+      }
     );
   } catch (error: unknown) {
     console.error("Error in send-push-notification:", error);

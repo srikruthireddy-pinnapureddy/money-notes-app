@@ -874,6 +874,33 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          created_at: string
+          endpoint: string
+          id: string
+          identifier: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          id?: string
+          identifier: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          id?: string
+          identifier?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       recurring_expenses: {
         Row: {
           amount: number
@@ -1071,6 +1098,16 @@ export type Database = {
       }
     }
     Functions: {
+      check_rate_limit: {
+        Args: {
+          p_endpoint: string
+          p_identifier: string
+          p_max_requests?: number
+          p_window_seconds?: number
+        }
+        Returns: Json
+      }
+      cleanup_rate_limits: { Args: never; Returns: undefined }
       get_group_info_from_invite: {
         Args: { invite_code_param: string }
         Returns: Json

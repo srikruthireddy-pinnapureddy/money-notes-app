@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -6,14 +5,57 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+// Rate limit configuration: 10 requests per minute (AI calls are expensive)
+const RATE_LIMIT_MAX_REQUESTS = 10;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+
+async function checkRateLimit(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  identifier: string,
+  endpoint: string
+): Promise<{ allowed: boolean; remaining: number; retryAfter?: number }> {
+  try {
+    // Create a fresh client for the RPC call to avoid type issues
+    const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data, error } = await serviceClient.rpc("check_rate_limit", {
+      p_identifier: identifier,
+      p_endpoint: endpoint,
+      p_max_requests: RATE_LIMIT_MAX_REQUESTS,
+      p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+    } as Record<string, unknown>);
+
+    if (error) {
+      console.error("Rate limit check error:", error);
+      // Allow on error to prevent blocking legitimate requests
+      return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS };
+    }
+
+    const result = data as { allowed: boolean; remaining: number; retry_after?: number };
+    return {
+      allowed: result.allowed,
+      remaining: result.remaining,
+      retryAfter: result.retry_after,
+    };
+  } catch (error) {
+    console.error("Rate limit exception:", error);
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS };
+  }
+}
+
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
   try {
     // Authentication check - verify user is logged in
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.error("No authorization header provided");
       return new Response(
@@ -23,15 +65,12 @@ serve(async (req) => {
     }
 
     // Verify the user with Supabase
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
+      global: { headers: { Authorization: authHeader } },
     });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
       console.error("Authentication failed:", authError?.message);
       return new Response(
@@ -42,8 +81,30 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.id);
 
+    // Rate limiting check
+    const rateLimitResult = await checkRateLimit(supabaseUrl, supabaseServiceKey, user.id, "scan-receipt");
+
+    if (!rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for user ${user.id} on scan-receipt`);
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please try again later.",
+          retryAfter: rateLimitResult.retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimitResult.retryAfter || 60),
+            "X-RateLimit-Remaining": "0",
+          },
+        }
+      );
+    }
+
     const { image } = await req.json();
-    
+
     if (!image) {
       return new Response(
         JSON.stringify({ error: "Image data is required" }),
@@ -90,16 +151,16 @@ serve(async (req) => {
    - Healthcare (pharmacy, medical)
    - Other (anything else)
 
-Be precise with the amount - extract the final total, not subtotals or individual items. Use OCR to read all text carefully.`
+Be precise with the amount - extract the final total, not subtotals or individual items. Use OCR to read all text carefully.`,
               },
               {
                 type: "image_url",
                 image_url: {
-                  url: image
-                }
-              }
-            ]
-          }
+                  url: image,
+                },
+              },
+            ],
+          },
         ],
         tools: [
           {
@@ -112,43 +173,54 @@ Be precise with the amount - extract the final total, not subtotals or individua
                 properties: {
                   amount: {
                     type: "number",
-                    description: "The total/final amount from the receipt (numeric value only, no currency symbols)"
+                    description:
+                      "The total/final amount from the receipt (numeric value only, no currency symbols)",
                   },
                   description: {
                     type: "string",
-                    description: "The merchant name or brief description of the expense (max 50 characters)"
+                    description:
+                      "The merchant name or brief description of the expense (max 50 characters)",
                   },
                   category: {
                     type: "string",
-                    enum: ["Food", "Transport", "Accommodation", "Entertainment", "Shopping", "Utilities", "Healthcare", "Other"],
-                    description: "The expense category"
+                    enum: [
+                      "Food",
+                      "Transport",
+                      "Accommodation",
+                      "Entertainment",
+                      "Shopping",
+                      "Utilities",
+                      "Healthcare",
+                      "Other",
+                    ],
+                    description: "The expense category",
                   },
                   date: {
                     type: "string",
-                    description: "The transaction date in YYYY-MM-DD format"
-                  }
+                    description: "The transaction date in YYYY-MM-DD format",
+                  },
                 },
                 required: ["amount", "description", "category", "date"],
-                additionalProperties: false
-              }
-            }
-          }
+                additionalProperties: false,
+              },
+            },
+          },
         ],
-        tool_choice: { type: "function", function: { name: "extract_receipt_data" } }
+        tool_choice: { type: "function", function: { name: "extract_receipt_data" } },
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
-      
+
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      
+
       if (response.status === 402) {
         return new Response(
           JSON.stringify({ error: "Payment required. Please add credits to your workspace." }),
@@ -178,10 +250,13 @@ Be precise with the amount - extract the final total, not subtotals or individua
     const receiptData = JSON.parse(toolCall.function.arguments);
     console.log("Extracted receipt data for user", user.id, ":", receiptData);
 
-    return new Response(
-      JSON.stringify(receiptData),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify(receiptData), {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+        "X-RateLimit-Remaining": String(rateLimitResult.remaining),
+      },
+    });
   } catch (error) {
     console.error("Error in scan-receipt function:", error);
     return new Response(
