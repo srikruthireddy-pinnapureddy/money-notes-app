@@ -112,6 +112,24 @@ export const investmentTransactionSchema = z.object({
     .min(0, "Units cannot be negative"),
 });
 
+// Recurring expenses
+export const recurringExpenseSchema = z.object({
+  description: z.string()
+    .trim()
+    .min(1, "Description is required")
+    .max(500, "Description must be 500 characters or less"),
+  amount: z.number()
+    .positive("Amount must be positive")
+    .max(999999999, "Amount is too large"),
+  category: z.string()
+    .max(100, "Category must be 100 characters or less")
+    .optional()
+    .nullable(),
+  frequency: z.enum(["daily", "weekly", "monthly", "yearly"], {
+    errorMap: () => ({ message: "Please select a valid frequency" }),
+  }),
+});
+
 // Group messages
 export const messageSchema = z.object({
   content: z.string()
@@ -162,6 +180,8 @@ export const MAX_LENGTHS = {
   messageContent: 5000,
   notificationTitle: 200,
   notificationMessage: 1000,
+  recurringExpenseDescription: 500,
+  recurringExpenseCategory: 100,
   fileUploadSize: 10 * 1024 * 1024, // 10MB
 } as const;
 

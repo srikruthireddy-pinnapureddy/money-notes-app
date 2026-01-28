@@ -21,6 +21,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Calendar, Repeat } from "lucide-react";
+import { recurringExpenseSchema, MAX_LENGTHS } from "@/utils/validation";
 
 type Member = {
   id: string;
@@ -61,6 +62,7 @@ export function RecurringExpenseDialog({
 }: RecurringExpenseDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
@@ -89,13 +91,42 @@ export function RecurringExpenseDialog({
     setFrequency("monthly");
     setNextOccurrence(new Date().toISOString().split("T")[0]);
     setSelectedMembers(new Set());
+    setErrors({});
+  };
+
+  const validateForm = (): boolean => {
+    const parsedAmount = parseFloat(amount);
+    const result = recurringExpenseSchema.safeParse({
+      description: description.trim(),
+      amount: isNaN(parsedAmount) ? 0 : parsedAmount,
+      category: category.trim() || null,
+      frequency,
+    });
+
+    if (!result.success) {
+      const newErrors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        newErrors[field] = err.message;
+      });
+      setErrors(newErrors);
+      return false;
+    }
+
+    if (selectedMembers.size === 0) {
+      setErrors({ members: "Please select at least one member" });
+      return false;
+    }
+
+    setErrors({});
+    return true;
   };
 
   const handleSubmit = async () => {
-    if (!description.trim() || !amount || selectedMembers.size === 0) {
+    if (!validateForm()) {
       toast({
-        title: "Missing information",
-        description: "Please fill in all required fields",
+        title: "Validation Error",
+        description: "Please fix the errors below",
         variant: "destructive",
       });
       return;
@@ -192,8 +223,21 @@ export function RecurringExpenseDialog({
               id="description"
               placeholder="e.g., Monthly rent"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                if (errors.description) setErrors((prev) => ({ ...prev, description: "" }));
+              }}
+              maxLength={MAX_LENGTHS.recurringExpenseDescription}
+              className={errors.description ? "border-destructive" : ""}
             />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              {errors.description ? (
+                <span className="text-destructive">{errors.description}</span>
+              ) : (
+                <span />
+              )}
+              <span>{description.length}/{MAX_LENGTHS.recurringExpenseDescription}</span>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -205,8 +249,15 @@ export function RecurringExpenseDialog({
               min="0"
               placeholder="0.00"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                if (errors.amount) setErrors((prev) => ({ ...prev, amount: "" }));
+              }}
+              className={errors.amount ? "border-destructive" : ""}
             />
+            {errors.amount && (
+              <span className="text-xs text-destructive">{errors.amount}</span>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -215,8 +266,21 @@ export function RecurringExpenseDialog({
               id="category"
               placeholder="e.g., Rent, Utilities"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                if (errors.category) setErrors((prev) => ({ ...prev, category: "" }));
+              }}
+              maxLength={MAX_LENGTHS.recurringExpenseCategory}
+              className={errors.category ? "border-destructive" : ""}
             />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              {errors.category ? (
+                <span className="text-destructive">{errors.category}</span>
+              ) : (
+                <span />
+              )}
+              <span>{category.length}/{MAX_LENGTHS.recurringExpenseCategory}</span>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -254,13 +318,16 @@ export function RecurringExpenseDialog({
                 Select All
               </Button>
             </div>
-            <div className="space-y-2 border rounded-lg p-3 max-h-40 overflow-y-auto">
+            <div className={`space-y-2 border rounded-lg p-3 max-h-40 overflow-y-auto ${errors.members ? "border-destructive" : ""}`}>
               {members.map((member) => (
                 <div key={member.id} className="flex items-center space-x-2">
                   <Checkbox
                     id={`member-${member.user_id}`}
                     checked={selectedMembers.has(member.user_id)}
-                    onCheckedChange={() => toggleMember(member.user_id)}
+                    onCheckedChange={() => {
+                      toggleMember(member.user_id);
+                      if (errors.members) setErrors((prev) => ({ ...prev, members: "" }));
+                    }}
                   />
                   <Label
                     htmlFor={`member-${member.user_id}`}
@@ -271,6 +338,9 @@ export function RecurringExpenseDialog({
                 </div>
               ))}
             </div>
+            {errors.members && (
+              <span className="text-xs text-destructive">{errors.members}</span>
+            )}
           </div>
         </div>
 
