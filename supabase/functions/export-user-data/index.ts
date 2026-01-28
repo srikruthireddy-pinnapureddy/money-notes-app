@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sanitizeString } from "../_shared/validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -182,11 +183,12 @@ Deno.serve(async (req) => {
     }
 
     // Collect all user data from various tables
+    // Sanitize user-provided data in export to prevent XSS when viewed
     const exportData: Record<string, unknown> = {
       export_date: new Date().toISOString(),
       user_id: user.id,
-      email: user.email,
-      phone: user.phone,
+      email: sanitizeString(user.email, 255),
+      phone: sanitizeString(user.phone, 20),
       created_at: user.created_at,
     };
 

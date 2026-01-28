@@ -1,4 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  validateRequiredString,
+  validateUUIDArray,
+  validateOptionalURL,
+  validateUUID,
+  validateOptionalEnum,
+  validationErrorResponse,
+  parseJSONBody,
+  sanitizeString,
+} from "../_shared/validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -215,21 +225,110 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { userIds, payload }: SendPushRequest = await req.json();
-
-    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "userIds array is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Parse and validate request body
+    const bodyResult = await parseJSONBody(req);
+    if (!bodyResult.valid) {
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "send-push-notification",
+        request_id: requestId,
+        user_id: callerId,
+        action: "validation",
+        status: "blocked",
+        details: { reason: "invalid_body", error: bodyResult.error },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
+      return validationErrorResponse(bodyResult.error, corsHeaders);
     }
 
-    if (!payload || !payload.title || !payload.message) {
-      return new Response(
-        JSON.stringify({ error: "payload with title and message is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const body = bodyResult.data as Record<string, unknown>;
+    const payloadInput = body.payload as Record<string, unknown> | undefined;
+
+    // Validate userIds array (max 100 users per request)
+    const userIdsResult = validateUUIDArray(body.userIds, "userIds", 1, 100);
+    if (!userIdsResult.valid) {
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "send-push-notification",
+        request_id: requestId,
+        user_id: callerId,
+        action: "validation",
+        status: "blocked",
+        details: { reason: "invalid_user_ids", error: userIdsResult.error },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
+      return validationErrorResponse(userIdsResult.error, corsHeaders);
     }
+    const userIds = userIdsResult.value;
+
+    // Validate payload object
+    if (!payloadInput || typeof payloadInput !== "object") {
+      return validationErrorResponse("payload is required and must be an object", corsHeaders);
+    }
+
+    // Validate payload.title (required, max 100 chars)
+    const titleResult = validateRequiredString(payloadInput.title, "payload.title", 1, 100);
+    if (!titleResult.valid) {
+      return validationErrorResponse(titleResult.error, corsHeaders);
+    }
+
+    // Validate payload.message (required, max 500 chars)
+    const messageResult = validateRequiredString(payloadInput.message, "payload.message", 1, 500);
+    if (!messageResult.valid) {
+      return validationErrorResponse(messageResult.error, corsHeaders);
+    }
+
+    // Validate optional payload.url
+    const urlResult = validateOptionalURL(payloadInput.url, "payload.url");
+    if (!urlResult.valid) {
+      return validationErrorResponse(urlResult.error, corsHeaders);
+    }
+
+    // Validate optional payload.groupId
+    let groupIdValue: string | undefined;
+    if (payloadInput.groupId !== undefined && payloadInput.groupId !== null && payloadInput.groupId !== "") {
+      const groupIdResult = validateUUID(payloadInput.groupId, "payload.groupId");
+      if (!groupIdResult.valid) {
+        return validationErrorResponse(groupIdResult.error, corsHeaders);
+      }
+      groupIdValue = groupIdResult.value;
+    }
+
+    // Validate optional payload.type
+    const NOTIFICATION_TYPES = ["expense", "settlement", "reminder", "chat", "general"] as const;
+    const typeResult = validateOptionalEnum(payloadInput.type, "payload.type", NOTIFICATION_TYPES);
+    if (!typeResult.valid) {
+      return validationErrorResponse(typeResult.error, corsHeaders);
+    }
+
+    // Sanitize optional tag
+    const tagValue = sanitizeString(payloadInput.tag, 50);
+
+    // Construct validated payload
+    const payload: PushPayload = {
+      title: titleResult.value,
+      message: messageResult.value,
+      url: urlResult.value ?? undefined,
+      groupId: groupIdValue,
+      type: typeResult.value ?? undefined,
+      tag: tagValue ?? undefined,
+    };
+
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "send-push-notification",
+      request_id: requestId,
+      user_id: callerId,
+      action: "validation",
+      status: "success",
+      details: { user_count: userIds.length, has_group: !!groupIdValue },
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
 
     // Validate that the caller has permission to notify target users
     // They must share at least one group with all target users
