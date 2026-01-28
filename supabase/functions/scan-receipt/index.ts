@@ -4,10 +4,11 @@ import {
   validationErrorResponse,
   parseJSONBody,
 } from "../_shared/validation.ts";
+import { validateCsrfRequest, requireCsrfValidation } from "../_shared/csrf.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-csrf-token",
 };
 
 // Rate limit configuration: 10 requests per minute (AI calls are expensive)
@@ -82,6 +83,28 @@ Deno.serve(async (req) => {
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // CSRF validation for mutable requests
+  const csrfError = requireCsrfValidation(req);
+  if (csrfError) {
+    const requestId = generateRequestId();
+    const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+    const userAgent = req.headers.get("user-agent") || "unknown";
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "scan-receipt",
+      request_id: requestId,
+      user_id: null,
+      action: "csrf_validation",
+      status: "blocked",
+      details: { reason: "csrf_validation_failed" },
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
+    csrfError.headers.set("Access-Control-Allow-Origin", "*");
+    csrfError.headers.set("Access-Control-Allow-Headers", "authorization, x-client-info, apikey, content-type, x-csrf-token");
+    return csrfError;
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
