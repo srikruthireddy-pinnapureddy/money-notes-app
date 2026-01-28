@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  validateBase64Image,
+  validationErrorResponse,
+  parseJSONBody,
+} from "../_shared/validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -176,14 +181,45 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { image } = await req.json();
-
-    if (!image) {
-      return new Response(
-        JSON.stringify({ error: "Image data is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Parse and validate request body
+    const bodyResult = await parseJSONBody(req);
+    if (!bodyResult.valid) {
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "scan-receipt",
+        request_id: requestId,
+        user_id: user.id,
+        action: "validation",
+        status: "blocked",
+        details: { reason: "invalid_body", error: bodyResult.error },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
+      return validationErrorResponse(bodyResult.error, corsHeaders);
     }
+
+    const body = bodyResult.data as Record<string, unknown>;
+
+    // Validate image data (base64 data URL, max 10MB)
+    const imageResult = validateBase64Image(body.image, "image", 10 * 1024 * 1024);
+    if (!imageResult.valid) {
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "scan-receipt",
+        request_id: requestId,
+        user_id: user.id,
+        action: "validation",
+        status: "blocked",
+        details: { reason: "invalid_image", error: imageResult.error },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
+      return validationErrorResponse(imageResult.error, corsHeaders);
+    }
+
+    const image = imageResult.value;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {

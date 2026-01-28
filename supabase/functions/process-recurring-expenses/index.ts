@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sanitizeString, validateUUID, validatePositiveNumber } from "../_shared/validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -271,6 +272,22 @@ Deno.serve(async (req) => {
 
     for (const expense of (dueExpenses || []) as RecurringExpense[]) {
       try {
+        // Validate expense data before processing
+        const groupIdResult = validateUUID(expense.group_id, "group_id");
+        const creatorIdResult = validateUUID(expense.created_by, "created_by");
+        const amountResult = validatePositiveNumber(expense.amount, "amount", 100000000);
+        
+        if (!groupIdResult.valid || !creatorIdResult.valid || !amountResult.valid) {
+          console.error(`Invalid expense data for ${expense.id}:`, {
+            groupId: groupIdResult,
+            creatorId: creatorIdResult,
+            amount: amountResult,
+          });
+          results.failed++;
+          results.errors.push(`${expense.id}: Invalid expense data`);
+          continue;
+        }
+
         // Add idempotency check - skip if already processed today
         if (expense.last_processed_at) {
           const lastProcessed = new Date(expense.last_processed_at)
@@ -282,16 +299,19 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Create the expense
+        // Sanitize description to prevent XSS
+        const sanitizedDescription = sanitizeString(expense.description, 200) || "Recurring expense";
+
+        // Create the expense with sanitized data
         const { data: newExpense, error: expenseError } = await supabase
           .from("expenses")
           .insert({
-            group_id: expense.group_id,
-            description: `[Auto] ${expense.description}`,
-            amount: expense.amount,
-            currency: expense.currency,
-            category: expense.category,
-            paid_by: expense.created_by,
+            group_id: groupIdResult.value,
+            description: `[Auto] ${sanitizedDescription}`,
+            amount: amountResult.value,
+            currency: expense.currency?.slice(0, 3).toUpperCase() || "USD",
+            category: sanitizeString(expense.category, 50),
+            paid_by: creatorIdResult.value,
             expense_date: new Date().toISOString(),
           })
           .select()
@@ -301,12 +321,27 @@ Deno.serve(async (req) => {
           throw expenseError;
         }
 
-        // Create expense splits
-        const totalShares = expense.split_config.reduce((sum, s) => sum + s.share, 0);
-        const splits = expense.split_config.map((split) => ({
+        // Validate and create expense splits
+        const validSplits: { user_id: string; share: number }[] = [];
+        for (const split of expense.split_config) {
+          const userIdResult = validateUUID(split.user_id, "split.user_id");
+          const shareResult = validatePositiveNumber(split.share, "split.share", 100);
+          
+          if (userIdResult.valid && shareResult.valid) {
+            validSplits.push({ user_id: userIdResult.value, share: shareResult.value });
+          }
+        }
+
+        if (validSplits.length === 0) {
+          // Default to creator if no valid splits
+          validSplits.push({ user_id: creatorIdResult.value, share: 100 });
+        }
+
+        const totalShares = validSplits.reduce((sum, s) => sum + s.share, 0);
+        const splits = validSplits.map((split) => ({
           expense_id: newExpense.id,
           user_id: split.user_id,
-          amount: Math.round((expense.amount * split.share / totalShares) * 100) / 100,
+          amount: Math.round((amountResult.value * split.share / totalShares) * 100) / 100,
         }));
 
         const { error: splitsError } = await supabase
@@ -335,27 +370,27 @@ Deno.serve(async (req) => {
           throw updateError;
         }
 
-        // Create activity log entry
+        // Create activity log entry with sanitized data
         await supabase.from("activity_log").insert({
-          group_id: expense.group_id,
-          user_id: expense.created_by,
+          group_id: groupIdResult.value,
+          user_id: creatorIdResult.value,
           action_type: "recurring_expense_created",
           metadata: {
             expense_id: newExpense.id,
-            description: expense.description,
-            amount: expense.amount,
+            description: sanitizedDescription,
+            amount: amountResult.value,
           },
         });
 
-        // Create notifications for split members
-        for (const split of expense.split_config) {
-          if (split.user_id !== expense.created_by) {
+        // Create notifications for split members with sanitized data
+        for (const split of validSplits) {
+          if (split.user_id !== creatorIdResult.value) {
             await supabase.from("notifications").insert({
               user_id: split.user_id,
               type: "expense_added",
               title: "Recurring Expense",
-              message: `${expense.description} - ${expense.currency} ${expense.amount.toFixed(2)}`,
-              group_id: expense.group_id,
+              message: `${sanitizedDescription} - ${expense.currency?.slice(0, 3).toUpperCase() || "USD"} ${amountResult.value.toFixed(2)}`,
+              group_id: groupIdResult.value,
               related_id: newExpense.id,
             });
           }
