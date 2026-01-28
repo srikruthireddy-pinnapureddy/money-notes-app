@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 import { Copy, Check, Share2 } from "lucide-react";
+import { useCsrf } from "@/hooks/useCsrf";
 
 interface GroupInviteDialogProps {
   groupId: string;
@@ -27,6 +28,7 @@ export function GroupInviteDialog({
   onOpenChange,
 }: GroupInviteDialogProps) {
   const { toast } = useToast();
+  const { getHeaders } = useCsrf();
   const [inviteCode, setInviteCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -40,23 +42,18 @@ export function GroupInviteDialog({
   const generateInviteCode = async () => {
     setLoading(true);
     try {
-      // Generate secure 16-character code using crypto for better randomness
-      const array = new Uint8Array(12);
-      crypto.getRandomValues(array);
-      const code = Array.from(array, byte => byte.toString(36).padStart(2, '0')).join('').substring(0, 16).toUpperCase();
-      
-      const { error } = await supabase
-        .from("group_invites")
-        .insert({
-          group_id: groupId,
-          code: code,
-          created_by: (await supabase.auth.getUser()).data.user?.id,
-          max_uses: 50, // Set reasonable limit to prevent abuse
-        });
+      // Use server-side generation for enhanced security
+      const { data, error } = await supabase.functions.invoke("generate-invite-code", {
+        body: { group_id: groupId },
+        headers: getHeaders(),
+      });
 
       if (error) throw error;
-      setInviteCode(code);
+      if (!data.success) throw new Error(data.error || "Failed to generate invite code");
+
+      setInviteCode(data.invite.code);
     } catch (error: any) {
+      console.error("Invite code generation error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to generate invite code",
