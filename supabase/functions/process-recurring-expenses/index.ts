@@ -1,9 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sanitizeString, validateUUID, validatePositiveNumber } from "../_shared/validation.ts";
+import { requireCsrfValidation } from "../_shared/csrf.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-csrf-token",
 };
 
 // Rate limit configuration: 5 requests per minute (this is a batch operation)
@@ -111,6 +112,31 @@ Deno.serve(async (req) => {
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // CSRF validation for mutable requests (skip for cron/system calls with API key)
+  const apiKeyHeader = req.headers.get("X-API-Key");
+  const expectedApiKey = Deno.env.get("RECURRING_EXPENSES_API_KEY");
+  const isSystemCall = apiKeyHeader && expectedApiKey && apiKeyHeader === expectedApiKey;
+  
+  if (!isSystemCall) {
+    const csrfError = requireCsrfValidation(req);
+    if (csrfError) {
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "process-recurring-expenses",
+        request_id: requestId,
+        user_id: null,
+        action: "csrf_validation",
+        status: "blocked",
+        details: { reason: "csrf_validation_failed" },
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
+      csrfError.headers.set("Access-Control-Allow-Origin", "*");
+      csrfError.headers.set("Access-Control-Allow-Headers", "authorization, x-client-info, apikey, content-type, x-csrf-token");
+      return csrfError;
+    }
   }
 
   try {
