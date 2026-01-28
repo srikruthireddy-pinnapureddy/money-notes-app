@@ -9,6 +9,31 @@ const corsHeaders = {
 const RATE_LIMIT_MAX_REQUESTS = 30;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 
+// Security audit logging
+interface AuditLogEntry {
+  timestamp: string;
+  function_name: string;
+  request_id: string;
+  user_id: string | null;
+  action: string;
+  status: "success" | "error" | "blocked";
+  details: Record<string, unknown>;
+  duration_ms?: number;
+  ip_address?: string;
+  user_agent?: string;
+}
+
+function generateRequestId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+function logAudit(entry: AuditLogEntry): void {
+  console.log(JSON.stringify({
+    audit: true,
+    ...entry,
+  }));
+}
+
 interface PushPayload {
   title: string;
   message: string;
@@ -57,6 +82,11 @@ async function checkRateLimit(
 }
 
 Deno.serve(async (req) => {
+  const startTime = Date.now();
+  const requestId = generateRequestId();
+  const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+  const userAgent = req.headers.get("user-agent") || "unknown";
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -69,7 +99,18 @@ Deno.serve(async (req) => {
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
 
     if (!vapidPublicKey || !vapidPrivateKey) {
-      console.error("VAPID keys not configured");
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "send-push-notification",
+        request_id: requestId,
+        user_id: null,
+        action: "configuration",
+        status: "error",
+        details: { reason: "vapid_keys_missing" },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({ error: "Push notifications not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -79,7 +120,18 @@ Deno.serve(async (req) => {
     // Authenticate the caller
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      console.error("Missing or invalid authorization header");
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "send-push-notification",
+        request_id: requestId,
+        user_id: null,
+        action: "authentication",
+        status: "blocked",
+        details: { reason: "missing_auth_header" },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -95,7 +147,18 @@ Deno.serve(async (req) => {
     const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
 
     if (claimsError || !claimsData?.claims) {
-      console.error("Failed to verify caller:", claimsError);
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "send-push-notification",
+        request_id: requestId,
+        user_id: null,
+        action: "authentication",
+        status: "blocked",
+        details: { reason: "invalid_token", error: claimsError?.message },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -103,7 +166,18 @@ Deno.serve(async (req) => {
     }
 
     const callerId = claimsData.claims.sub as string;
-    console.log(`Push notification requested by user: ${callerId}`);
+    
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "send-push-notification",
+      request_id: requestId,
+      user_id: callerId,
+      action: "authentication",
+      status: "success",
+      details: {},
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
 
     // Create service client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -112,7 +186,18 @@ Deno.serve(async (req) => {
     const rateLimitResult = await checkRateLimit(supabaseUrl, supabaseServiceKey, callerId, "send-push-notification");
 
     if (!rateLimitResult.allowed) {
-      console.warn(`Rate limit exceeded for user ${callerId} on send-push-notification`);
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "send-push-notification",
+        request_id: requestId,
+        user_id: callerId,
+        action: "rate_limit",
+        status: "blocked",
+        details: { retry_after: rateLimitResult.retryAfter },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({
           error: "Rate limit exceeded. Please try again later.",
@@ -248,17 +333,28 @@ Deno.serve(async (req) => {
     console.log(`Found ${subscriptions.length} subscription(s) for push notifications`);
 
     // For now, just log the notifications that would be sent
-    // In production, you'd use a proper web-push library or service
     const results = subscriptions.map((sub) => {
-      console.log(`Would send push to user ${sub.user_id}:`, {
-        title: payload.title,
-        message: payload.message,
-        endpoint: sub.endpoint.substring(0, 50) + "...",
-      });
       return { userId: sub.user_id, queued: true };
     });
 
-    console.log(`Push notifications queued for ${results.length} user(s) by caller ${callerId}`);
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "send-push-notification",
+      request_id: requestId,
+      user_id: callerId,
+      action: "push_sent",
+      status: "success",
+      details: {
+        target_users: validatedUserIds.length,
+        subscriptions: results.length,
+        notification_type: payload.type || "general",
+        group_id: payload.groupId,
+        rate_limit_remaining: rateLimitResult.remaining,
+      },
+      duration_ms: Date.now() - startTime,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
 
     return new Response(
       JSON.stringify({
@@ -276,7 +372,18 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error: unknown) {
-    console.error("Error in send-push-notification:", error);
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "send-push-notification",
+      request_id: requestId,
+      user_id: null,
+      action: "error",
+      status: "error",
+      details: { error: error instanceof Error ? error.message : "Unknown error" },
+      duration_ms: Date.now() - startTime,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage }),

@@ -9,6 +9,31 @@ const corsHeaders = {
 const RATE_LIMIT_MAX_REQUESTS = 5;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 
+// Security audit logging
+interface AuditLogEntry {
+  timestamp: string;
+  function_name: string;
+  request_id: string;
+  user_id: string | null;
+  action: string;
+  status: "success" | "error" | "blocked";
+  details: Record<string, unknown>;
+  duration_ms?: number;
+  ip_address?: string;
+  user_agent?: string;
+}
+
+function generateRequestId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+function logAudit(entry: AuditLogEntry): void {
+  console.log(JSON.stringify({
+    audit: true,
+    ...entry,
+  }));
+}
+
 interface RecurringExpense {
   id: string;
   group_id: string;
@@ -78,6 +103,11 @@ function calculateNextOccurrence(currentDate: string, frequency: string): string
 }
 
 Deno.serve(async (req) => {
+  const startTime = Date.now();
+  const requestId = generateRequestId();
+  const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+  const userAgent = req.headers.get("user-agent") || "unknown";
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -105,7 +135,18 @@ Deno.serve(async (req) => {
         await supabaseClient.auth.getClaims(token);
 
       if (claimsError || !claimsData?.claims) {
-        console.error("Invalid JWT token:", claimsError);
+        logAudit({
+          timestamp: new Date().toISOString(),
+          function_name: "process-recurring-expenses",
+          request_id: requestId,
+          user_id: null,
+          action: "authentication",
+          status: "blocked",
+          details: { reason: "invalid_jwt", error: claimsError?.message },
+          duration_ms: Date.now() - startTime,
+          ip_address: ipAddress,
+          user_agent: userAgent,
+        });
         return new Response(
           JSON.stringify({ success: false, error: "Unauthorized - invalid token" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -114,16 +155,47 @@ Deno.serve(async (req) => {
 
       // Use user ID for rate limiting
       rateLimitIdentifier = claimsData.claims.sub as string;
-      console.log(`Authenticated request from user: ${rateLimitIdentifier}`);
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "process-recurring-expenses",
+        request_id: requestId,
+        user_id: rateLimitIdentifier,
+        action: "authentication",
+        status: "success",
+        details: { method: "jwt" },
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
     }
     // Option 2: Validate API key (for scheduled/cron calls)
     else if (apiKeyHeader && expectedApiKey && apiKeyHeader === expectedApiKey) {
-      console.log("Authenticated via API key for scheduled execution");
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "process-recurring-expenses",
+        request_id: requestId,
+        user_id: null,
+        action: "authentication",
+        status: "success",
+        details: { method: "api_key" },
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       rateLimitIdentifier = "cron-job";
     }
     // No valid authentication
     else {
-      console.error("No valid authentication provided");
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "process-recurring-expenses",
+        request_id: requestId,
+        user_id: null,
+        action: "authentication",
+        status: "blocked",
+        details: { reason: "no_valid_auth" },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({ success: false, error: "Unauthorized - authentication required" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -142,9 +214,18 @@ Deno.serve(async (req) => {
     );
 
     if (!rateLimitResult.allowed) {
-      console.warn(
-        `Rate limit exceeded for ${rateLimitIdentifier} on process-recurring-expenses`
-      );
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "process-recurring-expenses",
+        request_id: requestId,
+        user_id: rateLimitIdentifier === "cron-job" ? null : rateLimitIdentifier,
+        action: "rate_limit",
+        status: "blocked",
+        details: { retry_after: rateLimitResult.retryAfter },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({
           success: false,
@@ -171,6 +252,10 @@ Deno.serve(async (req) => {
       .select("*")
       .eq("is_active", true)
       .lte("next_occurrence", today);
+
+    if (fetchError) {
+      throw fetchError;
+    }
 
     if (fetchError) {
       throw fetchError;
@@ -277,14 +362,30 @@ Deno.serve(async (req) => {
         }
 
         results.processed++;
-        console.log(`Processed recurring expense: ${expense.description}`);
       } catch (error: unknown) {
         results.failed++;
         const errorMessage = error instanceof Error ? error.message : String(error);
         results.errors.push(`${expense.id}: ${errorMessage}`);
-        console.error(`Failed to process expense ${expense.id}:`, error);
       }
     }
+
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "process-recurring-expenses",
+      request_id: requestId,
+      user_id: rateLimitIdentifier === "cron-job" ? null : rateLimitIdentifier,
+      action: "process_complete",
+      status: results.failed > 0 ? "error" : "success",
+      details: {
+        processed: results.processed,
+        failed: results.failed,
+        total_due: dueExpenses?.length || 0,
+        rate_limit_remaining: rateLimitResult.remaining,
+      },
+      duration_ms: Date.now() - startTime,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
 
     return new Response(
       JSON.stringify({
@@ -301,7 +402,18 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error: unknown) {
-    console.error("Error processing recurring expenses:", error);
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "process-recurring-expenses",
+      request_id: requestId,
+      user_id: null,
+      action: "error",
+      status: "error",
+      details: { error: error instanceof Error ? error.message : "Unknown error" },
+      duration_ms: Date.now() - startTime,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
     const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({

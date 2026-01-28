@@ -9,6 +9,31 @@ const corsHeaders = {
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 
+// Security audit logging
+interface AuditLogEntry {
+  timestamp: string;
+  function_name: string;
+  request_id: string;
+  user_id: string | null;
+  action: string;
+  status: "success" | "error" | "blocked";
+  details: Record<string, unknown>;
+  duration_ms?: number;
+  ip_address?: string;
+  user_agent?: string;
+}
+
+function generateRequestId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+function logAudit(entry: AuditLogEntry): void {
+  console.log(JSON.stringify({
+    audit: true,
+    ...entry,
+  }));
+}
+
 async function checkRateLimit(
   supabaseUrl: string,
   supabaseServiceKey: string,
@@ -45,6 +70,11 @@ async function checkRateLimit(
 }
 
 Deno.serve(async (req) => {
+  const startTime = Date.now();
+  const requestId = generateRequestId();
+  const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+  const userAgent = req.headers.get("user-agent") || "unknown";
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -57,7 +87,18 @@ Deno.serve(async (req) => {
     // Authentication check - verify user is logged in
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      console.error("No authorization header provided");
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "scan-receipt",
+        request_id: requestId,
+        user_id: null,
+        action: "authentication",
+        status: "blocked",
+        details: { reason: "missing_auth_header" },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({ error: "Unauthorized - no authorization header" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -72,20 +113,52 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      console.error("Authentication failed:", authError?.message);
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "scan-receipt",
+        request_id: requestId,
+        user_id: null,
+        action: "authentication",
+        status: "blocked",
+        details: { reason: "invalid_token", error: authError?.message },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({ error: "Unauthorized - invalid token" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Authenticated user:", user.id);
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "scan-receipt",
+      request_id: requestId,
+      user_id: user.id,
+      action: "authentication",
+      status: "success",
+      details: {},
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
 
     // Rate limiting check
     const rateLimitResult = await checkRateLimit(supabaseUrl, supabaseServiceKey, user.id, "scan-receipt");
 
     if (!rateLimitResult.allowed) {
-      console.warn(`Rate limit exceeded for user ${user.id} on scan-receipt`);
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "scan-receipt",
+        request_id: requestId,
+        user_id: user.id,
+        action: "rate_limit",
+        status: "blocked",
+        details: { retry_after: rateLimitResult.retryAfter },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({
           error: "Rate limit exceeded. Please try again later.",
@@ -248,7 +321,23 @@ Be precise with the amount - extract the final total, not subtotals or individua
     }
 
     const receiptData = JSON.parse(toolCall.function.arguments);
-    console.log("Extracted receipt data for user", user.id, ":", receiptData);
+    
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "scan-receipt",
+      request_id: requestId,
+      user_id: user.id,
+      action: "scan_complete",
+      status: "success",
+      details: {
+        amount: receiptData.amount,
+        category: receiptData.category,
+        rate_limit_remaining: rateLimitResult.remaining,
+      },
+      duration_ms: Date.now() - startTime,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
 
     return new Response(JSON.stringify(receiptData), {
       headers: {
@@ -258,7 +347,18 @@ Be precise with the amount - extract the final total, not subtotals or individua
       },
     });
   } catch (error) {
-    console.error("Error in scan-receipt function:", error);
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "scan-receipt",
+      request_id: requestId,
+      user_id: null,
+      action: "error",
+      status: "error",
+      details: { error: error instanceof Error ? error.message : "Unknown error" },
+      duration_ms: Date.now() - startTime,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -9,6 +9,31 @@ const corsHeaders = {
 const RATE_LIMIT_MAX_REQUESTS = 3;
 const RATE_LIMIT_WINDOW_SECONDS = 3600;
 
+// Security audit logging
+interface AuditLogEntry {
+  timestamp: string;
+  function_name: string;
+  request_id: string;
+  user_id: string | null;
+  action: string;
+  status: "success" | "error" | "blocked";
+  details: Record<string, unknown>;
+  duration_ms?: number;
+  ip_address?: string;
+  user_agent?: string;
+}
+
+function generateRequestId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+function logAudit(entry: AuditLogEntry): void {
+  console.log(JSON.stringify({
+    audit: true,
+    ...entry,
+  }));
+}
+
 async function checkRateLimit(
   supabaseUrl: string,
   supabaseServiceKey: string,
@@ -43,6 +68,11 @@ async function checkRateLimit(
 }
 
 Deno.serve(async (req) => {
+  const startTime = Date.now();
+  const requestId = generateRequestId();
+  const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+  const userAgent = req.headers.get("user-agent") || "unknown";
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -56,7 +86,18 @@ Deno.serve(async (req) => {
     // Get the authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      console.error("No authorization header provided");
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "export-user-data",
+        request_id: requestId,
+        user_id: null,
+        action: "authentication",
+        status: "blocked",
+        details: { reason: "missing_auth_header" },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({ error: "No authorization header" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -77,20 +118,52 @@ Deno.serve(async (req) => {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      console.error("User authentication failed:", userError?.message);
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "export-user-data",
+        request_id: requestId,
+        user_id: null,
+        action: "authentication",
+        status: "blocked",
+        details: { reason: "invalid_token", error: userError?.message },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Export data requested by user: ${user.id}`);
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "export-user-data",
+      request_id: requestId,
+      user_id: user.id,
+      action: "authentication",
+      status: "success",
+      details: {},
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
 
     // Rate limiting check
     const rateLimitResult = await checkRateLimit(supabaseUrl, supabaseServiceKey, user.id, "export-user-data");
 
     if (!rateLimitResult.allowed) {
-      console.warn(`Rate limit exceeded for user ${user.id} on export-user-data`);
+      logAudit({
+        timestamp: new Date().toISOString(),
+        function_name: "export-user-data",
+        request_id: requestId,
+        user_id: user.id,
+        action: "rate_limit",
+        status: "blocked",
+        details: { retry_after: rateLimitResult.retryAfter },
+        duration_ms: Date.now() - startTime,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+      });
       return new Response(
         JSON.stringify({
           error: "Rate limit exceeded. You can export data 3 times per hour.",
@@ -221,7 +294,21 @@ Deno.serve(async (req) => {
       .eq("user_id", user.id);
     exportData.push_subscriptions = pushSubscriptions || [];
 
-    console.log("Data export completed successfully for user:", user.id);
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "export-user-data",
+      request_id: requestId,
+      user_id: user.id,
+      action: "export_complete",
+      status: "success",
+      details: {
+        tables_exported: Object.keys(exportData).length,
+        rate_limit_remaining: rateLimitResult.remaining,
+      },
+      duration_ms: Date.now() - startTime,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
 
     // Return as downloadable JSON
     return new Response(JSON.stringify(exportData, null, 2), {
@@ -234,7 +321,18 @@ Deno.serve(async (req) => {
       },
     });
   } catch (error) {
-    console.error("Export error:", error);
+    logAudit({
+      timestamp: new Date().toISOString(),
+      function_name: "export-user-data",
+      request_id: requestId,
+      user_id: null,
+      action: "error",
+      status: "error",
+      details: { error: error instanceof Error ? error.message : "Unknown error" },
+      duration_ms: Date.now() - startTime,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
     return new Response(
       JSON.stringify({ error: "Failed to export data" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
