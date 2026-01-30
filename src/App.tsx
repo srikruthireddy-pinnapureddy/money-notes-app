@@ -10,7 +10,6 @@ import { SplashScreen, OnboardingCarousel } from "@/components/app";
 import { supabase } from "@/integrations/supabase/client";
 
 // Pages
-import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import PersonalLedger from "./pages/PersonalLedger";
 import Auth from "./pages/Auth";
@@ -103,7 +102,7 @@ function AppShell() {
             className="min-h-screen"
           >
             <Routes location={location} key={location.pathname}>
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/ledger" element={<PersonalLedger />} />
               <Route path="/auth" element={<Auth />} />
