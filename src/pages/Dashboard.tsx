@@ -11,7 +11,8 @@ import { GroupSpace, PersonalSpace } from "@/components/spaces";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { WelcomeBanner } from "@/components/WelcomeBanner";
 import { AnimatedCounter } from "@/components/investments/AnimatedCounter";
-// Onboarding is now handled at App level
+import { CreateGroupDialog } from "@/components/CreateGroupDialog";
+import { AddTransactionDrawer } from "@/components/AddTransactionDrawer";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -54,7 +55,8 @@ const Dashboard = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [totalBalance, setTotalBalance] = useState<number>(0);
   const [investmentsValue, setInvestmentsValue] = useState<number>(0);
-  // Onboarding is now handled at App level
+  const [showCreateGroupDialog, setShowCreateGroupDialog] = useState(false);
+  const [showAddExpenseDrawer, setShowAddExpenseDrawer] = useState(false);
   const [spendingTrend, setSpendingTrend] = useState<{ current: number; previous: number; percentChange: number }>({
     current: 0,
     previous: 0,
@@ -550,7 +552,15 @@ const Dashboard = () => {
       {/* Space Content with Slide Animation */}
       <main ref={containerRef} className="px-4 py-4 pb-24 overflow-hidden" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         {/* Welcome Banner for first-time users only */}
-        <WelcomeBanner userName={session?.user?.email} userId={session?.user?.id} />
+        <WelcomeBanner 
+          userName={session?.user?.email} 
+          userId={session?.user?.id}
+          onCreateGroup={() => setShowCreateGroupDialog(true)}
+          onAddExpense={() => {
+            setActiveSpace("personal");
+            setShowAddExpenseDrawer(true);
+          }}
+        />
         
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div key={activeSpace} custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{
@@ -569,6 +579,23 @@ const Dashboard = () => {
       </main>
 
       {showScanner && <BarcodeScanner onScan={handleBarcodeScan} onClose={() => setShowScanner(false)} />}
+      
+      {/* Quick action dialogs triggered from welcome banner */}
+      <CreateGroupDialog 
+        open={showCreateGroupDialog} 
+        onOpenChange={setShowCreateGroupDialog}
+        onGroupCreated={() => {
+          fetchGroups();
+          setShowCreateGroupDialog(false);
+        }}
+      />
+      
+      <AddTransactionDrawer
+        open={showAddExpenseDrawer}
+        onOpenChange={setShowAddExpenseDrawer}
+        onTransactionAdded={() => setShowAddExpenseDrawer(false)}
+        categories={["Food & Dining", "Transport", "Shopping", "Entertainment", "Bills & Utilities", "Health", "Groceries", "Education", "Rent", "Other"]}
+      />
     </div>;
 };
 export default Dashboard;
