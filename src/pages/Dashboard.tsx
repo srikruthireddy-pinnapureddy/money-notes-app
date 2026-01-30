@@ -8,7 +8,6 @@ import { Settings, ScanBarcode, LogOut, User, Menu, UsersRound, TrendingUp, Tren
 import { Session } from "@supabase/supabase-js";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { GroupSpace, PersonalSpace } from "@/components/spaces";
-import { SpendingCategoryChart } from "@/components/SpendingCategoryChart";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { WelcomeBanner } from "@/components/WelcomeBanner";
 import { AnimatedCounter } from "@/components/investments/AnimatedCounter";
@@ -422,12 +421,6 @@ const Dashboard = () => {
                       </div>
                     )}
 
-                    {/* Spending Category Chart */}
-                    {isMenuOpen && activeSpace === "personal" && (
-                      <div className="mt-4">
-                        <SpendingCategoryChart />
-                      </div>
-                    )}
 
                     {/* Monthly Spending Trend with Mini Bar Chart */}
                     {isMenuOpen && (
