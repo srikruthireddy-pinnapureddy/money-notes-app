@@ -1,13 +1,16 @@
 project_id = "mrnjywxdrlplpphdjyvf"
 
 [functions.scan-receipt]
-verify_jwt = true
+verify_jwt = false
 
 [functions.export-user-data]
-verify_jwt = true
+verify_jwt = false
 
 [functions.process-recurring-expenses]
 verify_jwt = false
 
 [functions.send-push-notification]
+verify_jwt = false
+
+[functions.generate-invite-code]
 verify_jwt = false

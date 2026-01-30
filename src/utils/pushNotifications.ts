@@ -20,7 +20,6 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) {
-    console.log('Service workers not supported');
     return null;
   }
 
@@ -28,22 +27,18 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     const registration = await navigator.serviceWorker.register('/sw.js', {
       scope: '/'
     });
-    console.log('Service Worker registered:', registration.scope);
     return registration;
-  } catch (error) {
-    console.error('Service Worker registration failed:', error);
+  } catch {
     return null;
   }
 }
 
 export async function subscribeToPushNotifications(): Promise<boolean> {
   if (!('PushManager' in window)) {
-    console.log('Push notifications not supported');
     return false;
   }
 
   if (!VAPID_PUBLIC_KEY) {
-    console.error('VAPID public key not configured');
     return false;
   }
 
@@ -51,7 +46,6 @@ export async function subscribeToPushNotifications(): Promise<boolean> {
     // Get current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.log('User not authenticated');
       return false;
     }
 
@@ -64,7 +58,6 @@ export async function subscribeToPushNotifications(): Promise<boolean> {
     // Request notification permission
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      console.log('Notification permission denied');
       return false;
     }
 
@@ -105,15 +98,12 @@ export async function subscribeToPushNotifications(): Promise<boolean> {
         });
 
       if (error) {
-        console.error('Error saving push subscription:', error);
         return false;
       }
     }
 
-    console.log('Push notification subscription successful');
     return true;
-  } catch (error) {
-    console.error('Error subscribing to push notifications:', error);
+  } catch {
     return false;
   }
 }
@@ -138,8 +128,7 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
     }
 
     return true;
-  } catch (error) {
-    console.error('Error unsubscribing from push notifications:', error);
+  } catch {
     return false;
   }
 }

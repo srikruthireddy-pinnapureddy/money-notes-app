@@ -27,8 +27,8 @@ export interface CsrfValidationResult {
  */
 export function validateOrigin(origin: string | null): CsrfValidationResult {
   if (!origin) {
-    // Allow requests without origin (same-origin requests, curl, etc.)
-    return { valid: true };
+    // Reject requests without origin header for security
+    return { valid: false, error: 'Missing origin header' };
   }
 
   // Check explicit allowed origins
@@ -69,8 +69,8 @@ export function validateReferer(referer: string | null): CsrfValidationResult {
  */
 export function validateCsrfToken(token: string | null): CsrfValidationResult {
   if (!token) {
-    // CSRF token is optional for now (origin validation is primary)
-    return { valid: true };
+    // CSRF token is required for state-changing operations
+    return { valid: false, error: 'Missing CSRF token' };
   }
 
   // Validate token format (64 hex characters)

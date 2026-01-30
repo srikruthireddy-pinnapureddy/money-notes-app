@@ -327,8 +327,6 @@ export function AddExpenseDrawer({
   };
 
   const handleScanReceipt = async (imageData: string) => {
-    console.log("handleScanReceipt called, image data length:", imageData.length);
-    
     try {
       setScanning(true);
       setShowCamera(false);
@@ -336,17 +334,13 @@ export function AddExpenseDrawer({
       // Store receipt image for later upload
       setReceiptImage(imageData);
 
-      console.log("Invoking scan-receipt function...");
       const { data, error } = await supabase.functions.invoke("scan-receipt", {
         body: { image: imageData },
       });
 
-      console.log("scan-receipt response:", { data, error });
-
       if (error) throw error;
 
       if (data) {
-        console.log("Setting form values from scanned data:", data);
         setDescription(data.description || "");
         setAmount(data.amount?.toString() || "");
         setCategory(data.category || "");
