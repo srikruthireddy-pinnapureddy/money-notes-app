@@ -20,7 +20,6 @@ export async function createDemoTransactions(): Promise<boolean> {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.log("No authenticated user, skipping demo data creation");
       return false;
     }
 
@@ -31,7 +30,6 @@ export async function createDemoTransactions(): Promise<boolean> {
       .limit(1);
 
     if (existingTransactions && existingTransactions.length > 0) {
-      console.log("User already has transactions, skipping demo data");
       return false;
     }
 
@@ -56,14 +54,11 @@ export async function createDemoTransactions(): Promise<boolean> {
       .insert(transactions);
 
     if (error) {
-      console.error("Error creating demo transactions:", error);
       return false;
     }
 
-    console.log("Demo transactions created successfully");
     return true;
-  } catch (error) {
-    console.error("Error in createDemoTransactions:", error);
+  } catch {
     return false;
   }
 }

@@ -112,8 +112,7 @@ async function sendPushNotification(userIds: string[], payload: PushPayload) {
     await supabase.functions.invoke('send-push-notification', {
       body: { userIds, payload }
     });
-  } catch (error) {
-    // Don't throw - push notifications are optional
-    console.log('Push notification skipped:', error);
+  } catch {
+    // Push notifications are optional - silently fail
   }
 }

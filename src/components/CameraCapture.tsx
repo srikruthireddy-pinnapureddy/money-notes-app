@@ -65,8 +65,6 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      console.log("File selected:", file.name, file.size, file.type);
-      
       // Check file size - limit to 5MB
       if (file.size > 5 * 1024 * 1024) {
         toast({
@@ -80,11 +78,9 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const imageData = e.target?.result as string;
-        console.log("Image loaded, data length:", imageData.length);
         setCapturedImage(imageData);
       };
-      reader.onerror = (e) => {
-        console.error("File read error:", e);
+      reader.onerror = () => {
         toast({
           title: "Upload Error",
           description: "Could not read the image file",
@@ -97,10 +93,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
 
   const handleConfirm = () => {
     if (capturedImage) {
-      console.log("Confirming image, calling onCapture...");
       onCapture(capturedImage);
-    } else {
-      console.error("No captured image to confirm");
     }
   };
 
