@@ -549,8 +549,8 @@ const Dashboard = () => {
 
       {/* Space Content with Slide Animation */}
       <main ref={containerRef} className="px-4 py-4 pb-24 overflow-hidden" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-        {/* Welcome Banner for new users */}
-        <WelcomeBanner userName={session?.user?.email} />
+        {/* Welcome Banner for first-time users only */}
+        <WelcomeBanner userName={session?.user?.email} userId={session?.user?.id} />
         
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div key={activeSpace} custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{
