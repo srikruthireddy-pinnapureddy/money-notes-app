@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { expenseSchema, MAX_LENGTHS } from "@/utils/validation";
 
 type Member = {
   user_id: string;
@@ -69,10 +70,17 @@ export function ExpenseAttachDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!description.trim() || !amount || parseFloat(amount) <= 0) {
+    // Validate inputs using schema
+    const validation = expenseSchema.safeParse({
+      description: description.trim(),
+      amount: parseFloat(amount) || 0,
+      category: category.trim() || null,
+    });
+    
+    if (!validation.success) {
       toast({
         title: "Invalid input",
-        description: "Please enter a valid description and amount",
+        description: validation.error.errors[0]?.message || "Please check your inputs",
         variant: "destructive",
       });
       return;
@@ -166,23 +174,30 @@ export function ExpenseAttachDialog({
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="description">Description *</Label>
+              <span className={`text-xs ${description.length > MAX_LENGTHS.expenseDescription ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {description.length}/{MAX_LENGTHS.expenseDescription}
+              </span>
+            </div>
             <Input
               id="description"
               placeholder="What was the expense for?"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value.slice(0, MAX_LENGTHS.expenseDescription))}
+              maxLength={MAX_LENGTHS.expenseDescription}
               required
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount ({groupCurrency})</Label>
+            <Label htmlFor="amount">Amount ({groupCurrency}) *</Label>
             <Input
               id="amount"
               type="number"
               step="0.01"
-              min="0"
+              min="0.01"
+              max="999999999"
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
