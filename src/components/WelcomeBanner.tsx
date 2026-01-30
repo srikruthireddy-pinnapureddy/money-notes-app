@@ -1,18 +1,26 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, ArrowRight } from "lucide-react";
+import { X, Sparkles, Users, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface WelcomeBannerProps {
   userName?: string;
   userId?: string;
   onDismiss?: () => void;
+  onCreateGroup?: () => void;
+  onAddExpense?: () => void;
 }
 
 const getStorageKey = (userId?: string) => 
   userId ? `expenx_welcome_seen_${userId}` : "expenx_welcome_seen";
 
-export function WelcomeBanner({ userName, userId, onDismiss }: WelcomeBannerProps) {
+export function WelcomeBanner({ 
+  userName, 
+  userId, 
+  onDismiss,
+  onCreateGroup,
+  onAddExpense 
+}: WelcomeBannerProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -22,9 +30,7 @@ export function WelcomeBanner({ userName, userId, onDismiss }: WelcomeBannerProp
     const hasSeenWelcome = localStorage.getItem(storageKey);
     
     if (!hasSeenWelcome) {
-      // First login - show banner and mark as seen
       const timer = setTimeout(() => setIsVisible(true), 500);
-      // Mark as seen immediately so it won't show on next session
       localStorage.setItem(storageKey, new Date().toISOString());
       return () => clearTimeout(timer);
     }
@@ -33,6 +39,16 @@ export function WelcomeBanner({ userName, userId, onDismiss }: WelcomeBannerProp
   const handleDismiss = () => {
     setIsVisible(false);
     onDismiss?.();
+  };
+
+  const handleCreateGroup = () => {
+    handleDismiss();
+    onCreateGroup?.();
+  };
+
+  const handleAddExpense = () => {
+    handleDismiss();
+    onAddExpense?.();
   };
 
   const displayName = userName?.split("@")[0] || "there";
@@ -67,19 +83,29 @@ export function WelcomeBanner({ userName, userId, onDismiss }: WelcomeBannerProp
                 Hey {displayName}! 👋
               </h2>
               
-              <p className="text-sm opacity-90 mb-3 max-w-md">
+              <p className="text-sm opacity-90 mb-4 max-w-md">
                 Track expenses, split bills with friends, and manage your finances—all in one place.
               </p>
 
+              {/* Quick Action Buttons */}
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   variant="secondary"
                   className="bg-white/20 hover:bg-white/30 text-primary-foreground border-0 backdrop-blur-sm"
-                  onClick={handleDismiss}
+                  onClick={handleCreateGroup}
                 >
-                  Get Started
-                  <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  <Users className="h-3.5 w-3.5 mr-1.5" />
+                  Create Group
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="bg-white/20 hover:bg-white/30 text-primary-foreground border-0 backdrop-blur-sm"
+                  onClick={handleAddExpense}
+                >
+                  <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
+                  Add Expense
                 </Button>
               </div>
             </div>
