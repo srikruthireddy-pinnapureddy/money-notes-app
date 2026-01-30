@@ -5,26 +5,33 @@ import { Button } from "@/components/ui/button";
 
 interface WelcomeBannerProps {
   userName?: string;
+  userId?: string;
   onDismiss?: () => void;
 }
 
-const STORAGE_KEY = "expenx_welcome_dismissed";
+const getStorageKey = (userId?: string) => 
+  userId ? `expenx_welcome_seen_${userId}` : "expenx_welcome_seen";
 
-export function WelcomeBanner({ userName, onDismiss }: WelcomeBannerProps) {
+export function WelcomeBanner({ userName, userId, onDismiss }: WelcomeBannerProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const dismissed = localStorage.getItem(STORAGE_KEY);
-    if (!dismissed) {
-      // Small delay for smoother appearance after page load
+    if (!userId) return;
+    
+    const storageKey = getStorageKey(userId);
+    const hasSeenWelcome = localStorage.getItem(storageKey);
+    
+    if (!hasSeenWelcome) {
+      // First login - show banner and mark as seen
       const timer = setTimeout(() => setIsVisible(true), 500);
+      // Mark as seen immediately so it won't show on next session
+      localStorage.setItem(storageKey, new Date().toISOString());
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [userId]);
 
   const handleDismiss = () => {
     setIsVisible(false);
-    localStorage.setItem(STORAGE_KEY, "true");
     onDismiss?.();
   };
 
@@ -38,7 +45,7 @@ export function WelcomeBanner({ userName, onDismiss }: WelcomeBannerProps) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.98 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/90 via-primary to-primary/80 p-4 sm:p-5 text-primary-foreground shadow-lg"
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/90 via-primary to-primary/80 p-4 sm:p-5 text-primary-foreground shadow-lg mb-4"
         >
           {/* Background decoration */}
           <div className="absolute inset-0 overflow-hidden">
