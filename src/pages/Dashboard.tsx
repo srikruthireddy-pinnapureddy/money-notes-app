@@ -10,6 +10,7 @@ import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { GroupSpace, PersonalSpace } from "@/components/spaces";
 import { SpendingCategoryChart } from "@/components/SpendingCategoryChart";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
+import { WelcomeBanner } from "@/components/WelcomeBanner";
 import { AnimatedCounter } from "@/components/investments/AnimatedCounter";
 // Onboarding is now handled at App level
 import { cn } from "@/lib/utils";
@@ -555,6 +556,9 @@ const Dashboard = () => {
 
       {/* Space Content with Slide Animation */}
       <main ref={containerRef} className="px-4 py-4 pb-24 overflow-hidden" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+        {/* Welcome Banner for new users */}
+        <WelcomeBanner userName={session?.user?.email} />
+        
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div key={activeSpace} custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{
           x: {
