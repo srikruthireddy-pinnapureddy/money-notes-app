@@ -79,7 +79,7 @@ export function SplashScreen({ durationMs = 2500, onFinish }: SplashScreenProps)
             repeat: Infinity,
             ease: "easeInOut",
           }}
-          className="rounded-3xl overflow-hidden"
+          className="rounded-3xl overflow-hidden relative"
         >
           <motion.div
             initial={{ scale: 0.8, rotate: -5 }}
@@ -89,6 +89,7 @@ export function SplashScreen({ durationMs = 2500, onFinish }: SplashScreenProps)
               ease: [0.22, 1, 0.36, 1],
               delay: 0.2 
             }}
+            className="relative"
           >
             <video
               autoPlay
@@ -106,6 +107,30 @@ export function SplashScreen({ durationMs = 2500, onFinish }: SplashScreenProps)
                 className="h-36 w-36 sm:h-40 sm:w-40 object-cover rounded-3xl"
               />
             </video>
+            {/* Shimmer overlay */}
+            <motion.div
+              className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              <motion.div
+                className="absolute inset-0 -translate-x-full"
+                animate={{
+                  translateX: ["-100%", "200%"],
+                }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  repeatDelay: 1.5,
+                  ease: "easeInOut",
+                }}
+                style={{
+                  background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)",
+                  width: "50%",
+                }}
+              />
+            </motion.div>
           </motion.div>
         </motion.div>
 
