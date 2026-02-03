@@ -109,38 +109,6 @@ export function SplashScreen({ durationMs = 2500, onFinish }: SplashScreenProps)
           </motion.div>
         </motion.div>
 
-        {/* App Name with staggered letter animation */}
-        <motion.h1
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ 
-            delay: 0.5, 
-            duration: 0.5,
-            ease: [0.22, 1, 0.36, 1]
-          }}
-          className="mt-6 text-3xl font-bold text-center text-foreground tracking-tight"
-        >
-          <motion.span
-            className="inline-block"
-            animate={{
-              backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-            }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            style={{
-              background: "linear-gradient(90deg, hsl(var(--foreground)), hsl(var(--primary)), hsl(var(--foreground)))",
-              backgroundSize: "200% 100%",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            ExpenX
-          </motion.span>
-        </motion.h1>
       </motion.div>
     </motion.div>
   );
