@@ -97,13 +97,13 @@ export function SplashScreen({ durationMs = 2500, onFinish }: SplashScreenProps)
               playsInline
               preload="auto"
               poster={logoStatic}
-              className="h-28 w-28 object-cover rounded-3xl"
+              className="h-36 w-36 sm:h-40 sm:w-40 object-cover rounded-3xl"
             >
               <source src={logoAnimated} type="video/mp4" />
               <img 
                 src={logoStatic} 
                 alt="ExpenX" 
-                className="h-28 w-28 object-cover rounded-3xl"
+                className="h-36 w-36 sm:h-40 sm:w-40 object-cover rounded-3xl"
               />
             </video>
           </motion.div>
