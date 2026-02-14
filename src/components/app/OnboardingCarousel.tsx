@@ -144,58 +144,98 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
     }
   };
 
-  // Micro-animation components for each slide
+  // Micro-animation components for each slide — branded EX style
   const renderIllustration = () => {
     switch (slide.illustration) {
       case "card-enter":
         return (
           <motion.div
-            initial={{ x: 100, opacity: 0, rotate: 5 }}
-            animate={{ x: 0, opacity: 1, rotate: 0 }}
-            transition={{ delay: 0.2, duration: 0.5, type: "spring" }}
-            className="w-48 h-28 bg-card rounded-xl shadow-lg border border-border p-4 mx-auto"
+            initial={{ y: 40, opacity: 0, scale: 0.9 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.6, type: "spring", stiffness: 120 }}
+            className="relative w-56 mx-auto"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                <Receipt className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <div className="h-3 w-20 bg-muted rounded" />
-                <div className="h-2 w-14 bg-muted/60 rounded mt-1" />
-              </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <div className="h-2 w-16 bg-muted/40 rounded" />
+            {/* Glow behind card */}
+            <motion.div
+              className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-primary/20 via-accent/10 to-primary/5 blur-xl"
+              animate={{ opacity: [0.4, 0.7, 0.4] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+            />
+            {/* Main card */}
+            <div className="relative bg-card/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-border/50 p-5 overflow-hidden">
+              {/* Shimmer stripe */}
               <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.5, type: "spring" }}
-                className="text-sm font-bold text-primary"
+                className="absolute inset-0 pointer-events-none"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
               >
-                ₹1,250
+                <motion.div
+                  className="absolute inset-0 -translate-x-full"
+                  animate={{ translateX: ["-100%", "200%"] }}
+                  transition={{ duration: 3, repeat: Infinity, repeatDelay: 2, ease: "easeInOut" }}
+                  style={{ background: "linear-gradient(90deg, transparent, hsl(var(--primary) / 0.08), transparent)", width: "50%" }}
+                />
               </motion.div>
+
+              <div className="flex items-center gap-3 mb-4">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.4, type: "spring" }}
+                  className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-md shadow-primary/20"
+                >
+                  <Receipt className="h-5 w-5 text-primary-foreground" />
+                </motion.div>
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-24 bg-muted rounded-full" />
+                  <div className="h-2 w-16 bg-muted/50 rounded-full" />
+                </div>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-border/40">
+                <div className="h-2 w-20 bg-muted/40 rounded-full" />
+                <motion.span
+                  initial={{ scale: 0, rotate: -10 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ delay: 0.6, type: "spring", stiffness: 200 }}
+                  className="text-base font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"
+                >
+                  ₹1,250
+                </motion.span>
+              </div>
             </div>
           </motion.div>
         );
       case "group-chip":
         return (
-          <div className="flex justify-center gap-2">
-            {[0, 1, 2].map((i) => (
+          <div className="flex justify-center items-center gap-3">
+            {[
+              { initials: "JD", gradient: "from-blue-400 to-indigo-500" },
+              { initials: "AR", gradient: "from-primary to-purple-500" },
+              { initials: "SK", gradient: "from-emerald-400 to-teal-500" },
+            ].map((member, i) => (
               <motion.div
                 key={i}
-                initial={{ scale: 0, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                transition={{ delay: 0.2 + i * 0.1, type: "spring" }}
-                className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-lg"
+                initial={{ scale: 0, y: 30, rotate: -15 }}
+                animate={{ scale: 1, y: 0, rotate: 0 }}
+                transition={{ delay: 0.15 + i * 0.12, type: "spring", stiffness: 180 }}
+                className="relative"
               >
-                {["JD", "AR", "SK"][i]}
+                <motion.div
+                  className={`absolute -inset-1 rounded-full bg-gradient-to-br ${member.gradient} blur-md opacity-40`}
+                  animate={{ opacity: [0.3, 0.6, 0.3] }}
+                  transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+                />
+                <div className={`relative w-14 h-14 rounded-full bg-gradient-to-br ${member.gradient} flex items-center justify-center text-white font-bold text-sm shadow-lg ring-2 ring-background`}>
+                  {member.initials}
+                </div>
               </motion.div>
             ))}
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ delay: 0.5, type: "spring" }}
-              className="w-12 h-12 rounded-full bg-muted border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground"
+              transition={{ delay: 0.55, type: "spring" }}
+              className="w-14 h-14 rounded-full bg-muted/50 border-2 border-dashed border-primary/30 flex items-center justify-center text-muted-foreground font-medium backdrop-blur-sm"
             >
               +3
             </motion.div>
@@ -203,15 +243,30 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
         );
       case "chart-grow":
         return (
-          <div className="flex items-end justify-center gap-2 h-24">
-            {[40, 65, 45, 80, 60].map((height, i) => (
+          <div className="flex items-end justify-center gap-2.5 h-28 px-4">
+            {[
+              { h: 35, color: "from-primary/40 to-primary/20" },
+              { h: 60, color: "from-primary/50 to-primary/30" },
+              { h: 42, color: "from-primary/40 to-primary/20" },
+              { h: 85, color: "from-primary to-accent" },
+              { h: 55, color: "from-primary/50 to-primary/30" },
+            ].map((bar, i) => (
               <motion.div
                 key={i}
-                initial={{ height: 0 }}
-                animate={{ height: `${height}%` }}
-                transition={{ delay: 0.2 + i * 0.1, duration: 0.5, ease: "easeOut" }}
-                className={`w-8 rounded-t-lg ${i === 3 ? "bg-primary" : "bg-primary/30"}`}
-              />
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: `${bar.h}%`, opacity: 1 }}
+                transition={{ delay: 0.2 + i * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                className="relative w-9 rounded-xl overflow-hidden"
+              >
+                <div className={`absolute inset-0 bg-gradient-to-t ${bar.color}`} />
+                {i === 3 && (
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-t from-transparent via-white/20 to-white/10"
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                )}
+              </motion.div>
             ))}
           </div>
         );
@@ -222,7 +277,7 @@ export function OnboardingCarousel({ onComplete }: OnboardingCarouselProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[90] bg-gradient-to-br from-purple-50 via-white to-purple-100 dark:from-gray-900 dark:via-gray-900 dark:to-purple-950 flex flex-col"
+      className="fixed inset-0 z-[90] bg-gradient-to-br from-primary/5 via-background to-accent/5 dark:from-gray-900 dark:via-gray-900 dark:to-primary/10 flex flex-col"
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="region"
