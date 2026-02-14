@@ -1,5 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// Extend ServiceWorkerRegistration to include pushManager
+declare global {
+  interface ServiceWorkerRegistration {
+    pushManager: PushManager;
+  }
+}
+
 // VAPID public key - this is safe to expose in client code
 const VAPID_PUBLIC_KEY = 'BCQVq2TaMpDYWeaDzKEs3WstCwy2MJ74u9Y10xfyCmZGgeI_3ch57PnVcHiBnXRaTew-HK0SV4-ZkW6tJwFBctY';
 
