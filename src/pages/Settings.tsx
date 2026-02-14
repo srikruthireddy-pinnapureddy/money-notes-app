@@ -26,7 +26,6 @@ interface Profile {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
-  phone_number: string | null;
 }
 
 const Settings = () => {
@@ -38,6 +37,7 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [mounted, setMounted] = useState(false);
@@ -70,18 +70,20 @@ const Settings = () => {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle();
+      const [profileResult, phoneResult] = await Promise.all([
+        supabase.from("profiles").select("id, display_name, avatar_url, created_at, updated_at").eq("id", userId).maybeSingle(),
+        supabase.from("user_phone_numbers").select("phone_number").eq("user_id", userId).maybeSingle(),
+      ]);
 
-      if (error) throw error;
+      if (profileResult.error) throw profileResult.error;
 
-      if (data) {
-        setProfile(data);
-        setDisplayName(data.display_name || "");
-        setAvatarUrl(data.avatar_url || "");
+      if (profileResult.data) {
+        setProfile(profileResult.data);
+        setDisplayName(profileResult.data.display_name || "");
+        setAvatarUrl(profileResult.data.avatar_url || "");
+      }
+      if (phoneResult.data) {
+        setPhoneNumber(phoneResult.data.phone_number);
       }
     } catch (error: any) {
       toast({
@@ -372,12 +374,12 @@ const Settings = () => {
                 </div>
               </div>
             )}
-            {profile?.phone_number && (
+            {phoneNumber && (
               <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                 <Phone className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium">Phone</p>
-                  <p className="text-sm text-muted-foreground">{profile.phone_number}</p>
+                  <p className="text-sm text-muted-foreground">{phoneNumber}</p>
                 </div>
               </div>
             )}
