@@ -58,31 +58,47 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = "Chart";
 
+// Validate CSS color values to prevent injection
+const isValidCSSColor = (value: string): boolean => {
+  return /^(#[0-9a-fA-F]{3,8}|rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)|rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*[\d.]+\s*\)|hsl\(\s*[\d.]+\s*,\s*[\d.]+%?\s*,\s*[\d.]+%?\s*\)|hsla\(\s*[\d.]+\s*,\s*[\d.]+%?\s*,\s*[\d.]+%?\s*,\s*[\d.]+\s*\)|[a-zA-Z]+)$/.test(value.trim());
+};
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
-  if (!colorConfig.length) {
+  // Build CSS variables safely with color validation
+  const styles = React.useMemo(() => {
+    if (!colorConfig.length) return "";
+
+    const cssRules: string[] = [];
+
+    for (const [theme, prefix] of Object.entries(THEMES)) {
+      const vars = colorConfig
+        .map(([key, itemConfig]) => {
+          const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+          if (color && isValidCSSColor(color)) {
+            return `  --color-${key.replace(/[^a-zA-Z0-9-_]/g, "")}: ${color};`;
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join("\n");
+
+      if (vars) {
+        cssRules.push(`${prefix} [data-chart=${id}] {\n${vars}\n}`);
+      }
+    }
+
+    return cssRules.join("\n");
+  }, [id, colorConfig]);
+
+  if (!styles) {
     return null;
   }
 
   return (
     <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
-}
-`,
-          )
-          .join("\n"),
-      }}
+      dangerouslySetInnerHTML={{ __html: styles }}
     />
   );
 };
