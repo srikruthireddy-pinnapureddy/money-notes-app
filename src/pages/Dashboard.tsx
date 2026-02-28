@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { AIAssistant } from "@/components/ai-assistant";
 import {
   Sheet,
   SheetContent,
@@ -596,6 +597,9 @@ const Dashboard = () => {
         onTransactionAdded={() => setShowAddExpenseDrawer(false)}
         categories={["Food & Dining", "Transport", "Shopping", "Entertainment", "Bills & Utilities", "Health", "Groceries", "Education", "Rent", "Other"]}
       />
+
+      {/* AI Financial Assistant */}
+      <AIAssistant />
     </div>;
 };
 export default Dashboard;
