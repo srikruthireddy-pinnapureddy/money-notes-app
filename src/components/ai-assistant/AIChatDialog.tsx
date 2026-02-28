@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
+import { parseCharts, InlineChart } from "./InlineChart";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
@@ -13,13 +14,38 @@ type Message = { role: "user" | "assistant"; content: string };
 const SUGGESTED_QUESTIONS = [
   "How much did I spend this month?",
   "What's my top spending category?",
+  "Show my spending breakdown as a chart",
+  "Compare my income vs expenses",
   "Show my group balances",
   "How are my investments doing?",
+  "What's my average daily spending?",
+  "Show monthly spending trend",
 ];
 
 interface AIChatDialogProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function AssistantMessage({ content }: { content: string }) {
+  const parts = parseCharts(content);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        typeof part === "string" ? (
+          <div
+            key={i}
+            className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+          >
+            <ReactMarkdown>{part}</ReactMarkdown>
+          </div>
+        ) : (
+          <InlineChart key={i} chart={part} />
+        )
+      )}
+    </>
+  );
 }
 
 export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
@@ -34,48 +60,35 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 300);
-    }
+    if (isOpen) setTimeout(() => inputRef.current?.focus(), 300);
   }, [isOpen]);
 
   // Load chat history on first open
   useEffect(() => {
     if (!isOpen || historyLoaded) return;
-
     const loadHistory = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-
       const { data } = await supabase
         .from("ai_chat_messages")
         .select("role, content")
         .order("created_at", { ascending: true })
         .limit(100);
-
       if (data && data.length > 0) {
         setMessages(data.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })));
       }
       setHistoryLoaded(true);
     };
-
     loadHistory();
   }, [isOpen, historyLoaded]);
 
   const persistMessage = async (role: "user" | "assistant", content: string) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-
-    await supabase.from("ai_chat_messages").insert({
-      user_id: session.user.id,
-      role,
-      content,
-    });
+    await supabase.from("ai_chat_messages").insert({ user_id: session.user.id, role, content });
   };
 
   const clearHistory = async () => {
@@ -93,8 +106,6 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
-
-    // Persist user message
     persistMessage("user", trimmed);
 
     let assistantSoFar = "";
@@ -102,9 +113,7 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error("Please log in to use the AI assistant");
-      }
+      if (!session?.access_token) throw new Error("Please log in to use the AI assistant");
 
       const resp = await fetch(CHAT_URL, {
         method: "POST",
@@ -113,25 +122,29 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
           Authorization: `Bearer ${session.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({
-          messages: allMessages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
+        body: JSON.stringify({ messages: allMessages.map((m) => ({ role: m.role, content: m.content })) }),
       });
 
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         throw new Error(err.error || "Failed to get response");
       }
-
       if (!resp.body) throw new Error("No response body");
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let textBuffer = "";
       let streamDone = false;
+
+      const updateAssistant = () => {
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.role === "assistant") {
+            return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
+          }
+          return [...prev, { role: "assistant", content: assistantSoFar }];
+        });
+      };
 
       while (!streamDone) {
         const { done, value } = await reader.read();
@@ -142,32 +155,15 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
         while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
           let line = textBuffer.slice(0, newlineIndex);
           textBuffer = textBuffer.slice(newlineIndex + 1);
-
           if (line.endsWith("\r")) line = line.slice(0, -1);
           if (line.startsWith(":") || line.trim() === "") continue;
           if (!line.startsWith("data: ")) continue;
-
           const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") {
-            streamDone = true;
-            break;
-          }
-
+          if (jsonStr === "[DONE]") { streamDone = true; break; }
           try {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              assistantSoFar += content;
-              setMessages((prev) => {
-                const last = prev[prev.length - 1];
-                if (last?.role === "assistant") {
-                  return prev.map((m, i) =>
-                    i === prev.length - 1 ? { ...m, content: assistantSoFar } : m
-                  );
-                }
-                return [...prev, { role: "assistant", content: assistantSoFar }];
-              });
-            }
+            if (content) { assistantSoFar += content; updateAssistant(); }
           } catch {
             textBuffer = line + "\n" + textBuffer;
             break;
@@ -187,28 +183,12 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
           try {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              assistantSoFar += content;
-              setMessages((prev) => {
-                const last = prev[prev.length - 1];
-                if (last?.role === "assistant") {
-                  return prev.map((m, i) =>
-                    i === prev.length - 1 ? { ...m, content: assistantSoFar } : m
-                  );
-                }
-                return [...prev, { role: "assistant", content: assistantSoFar }];
-              });
-            }
-          } catch {
-            /* ignore partial leftovers */
-          }
+            if (content) { assistantSoFar += content; updateAssistant(); }
+          } catch { /* ignore */ }
         }
       }
 
-      // Persist final assistant message
-      if (assistantSoFar) {
-        persistMessage("assistant", assistantSoFar);
-      }
+      if (assistantSoFar) persistMessage("assistant", assistantSoFar);
     } catch (e: any) {
       const errorMsg = `Sorry, I couldn't process that. ${e.message || "Please try again."}`;
       setMessages((prev) => [...prev, { role: "assistant", content: errorMsg }]);
@@ -219,10 +199,7 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input);
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
   };
 
   return (
@@ -273,15 +250,15 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                 <div className="text-center space-y-2">
                   <h3 className="text-lg font-semibold text-foreground">Ask me anything about your finances</h3>
                   <p className="text-sm text-muted-foreground max-w-xs">
-                    I can analyze your spending, group expenses, and investments.
+                    I can analyze spending, show charts, and give investment insights.
                   </p>
                 </div>
-                <div className="grid grid-cols-1 gap-2 w-full max-w-sm">
+                <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
                   {SUGGESTED_QUESTIONS.map((q) => (
                     <button
                       key={q}
                       onClick={() => sendMessage(q)}
-                      className="text-left px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted/50 text-sm text-foreground transition-colors"
+                      className="text-left px-3 py-2.5 rounded-xl border border-border bg-card hover:bg-muted/50 text-xs text-foreground transition-colors"
                     >
                       {q}
                     </button>
@@ -301,9 +278,7 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                   )}
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
+                    <AssistantMessage content={msg.content} />
                   ) : (
                     <p className="whitespace-pre-wrap">{msg.content}</p>
                   )}

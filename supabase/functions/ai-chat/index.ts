@@ -29,7 +29,6 @@ serve(async (req) => {
       );
     }
 
-    // Create Supabase client with user's auth
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -63,10 +62,7 @@ serve(async (req) => {
         .gte("transaction_date", threeMonthsAgo)
         .order("transaction_date", { ascending: false })
         .limit(100),
-      supabase
-        .from("groups")
-        .select("id, name, currency")
-        .limit(20),
+      supabase.from("groups").select("id, name, currency").limit(20),
       supabase
         .from("expense_splits")
         .select("amount, expense_id, expenses(description, amount, category, expense_date, currency, group_id, groups(name))")
@@ -84,29 +80,30 @@ serve(async (req) => {
     const investments = investmentsRes.data || [];
 
     // Build financial context
-    const totalIncome = transactions
-      .filter((t) => t.type === "income")
-      .reduce((s, t) => s + Number(t.amount), 0);
-    const totalExpense = transactions
-      .filter((t) => t.type === "expense")
-      .reduce((s, t) => s + Number(t.amount), 0);
+    const totalIncome = transactions.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0);
+    const totalExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
 
     const categoryBreakdown: Record<string, number> = {};
-    transactions
-      .filter((t) => t.type === "expense")
-      .forEach((t) => {
-        const cat = t.category || "Uncategorized";
-        categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + Number(t.amount);
-      });
+    transactions.filter((t) => t.type === "expense").forEach((t) => {
+      const cat = t.category || "Uncategorized";
+      categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + Number(t.amount);
+    });
+
+    // Monthly breakdown
+    const monthlyBreakdown: Record<string, { income: number; expense: number }> = {};
+    transactions.forEach((t) => {
+      const month = t.transaction_date.slice(0, 7); // YYYY-MM
+      if (!monthlyBreakdown[month]) monthlyBreakdown[month] = { income: 0, expense: 0 };
+      if (t.type === "income") monthlyBreakdown[month].income += Number(t.amount);
+      else monthlyBreakdown[month].expense += Number(t.amount);
+    });
 
     const investmentSummary = investments.map(
-      (i) =>
-        `${i.name} (${i.type}): invested ₹${i.invested_amount}, current ₹${i.current_value}`
+      (i) => `${i.name} (${i.type}): invested ₹${i.invested_amount}, current ₹${i.current_value}`
     );
 
     const recentTransactions = transactions.slice(0, 15).map(
-      (t) =>
-        `${t.transaction_date}: ${t.type} ₹${t.amount} - ${t.category || "N/A"} (${t.notes || "no note"})`
+      (t) => `${t.transaction_date}: ${t.type} ₹${t.amount} - ${t.category || "N/A"} (${t.notes || "no note"})`
     );
 
     const groupSplits = splits.slice(0, 20).map((s) => {
@@ -126,6 +123,12 @@ serve(async (req) => {
 ${Object.entries(categoryBreakdown)
   .sort(([, a], [, b]) => b - a)
   .map(([cat, amt]) => `- ${cat}: ₹${amt.toFixed(2)}`)
+  .join("\n")}
+
+**Monthly Breakdown:**
+${Object.entries(monthlyBreakdown)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([month, d]) => `- ${month}: Income ₹${d.income.toFixed(2)}, Expenses ₹${d.expense.toFixed(2)}`)
   .join("\n")}
 
 **Recent Transactions:**
@@ -151,27 +154,40 @@ RULES:
 6. You can do basic math (sums, averages, comparisons) on the provided data.
 7. Format responses with markdown for readability.
 
+CHART GENERATION:
+When the user asks for a chart, visual summary, breakdown visualization, or comparison chart, include a chart block in your response using this EXACT format:
+
+\`\`\`chart
+{"type":"pie","title":"Spending by Category","data":[{"name":"Food","value":5000},{"name":"Transport","value":3000}]}
+\`\`\`
+
+Chart rules:
+- "type" must be "pie" or "bar"
+- "data" must be an array of {"name": string, "value": number} objects
+- Use real data from the financial context — never invent values
+- You can include text explanation before and/or after the chart block
+- Use pie charts for category breakdowns and proportions
+- Use bar charts for comparisons over time (monthly trends, income vs expenses)
+- Always include a "title" field
+
 FINANCIAL CONTEXT:
 ${context}`;
 
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages.slice(-10), // Keep last 10 messages for context window
-          ],
-          stream: true,
-        }),
-      }
-    );
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages.slice(-10),
+        ],
+        stream: true,
+      }),
+    });
 
     if (!response.ok) {
       if (response.status === 429) {
