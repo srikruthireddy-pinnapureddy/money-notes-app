@@ -26,6 +26,7 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -43,6 +44,47 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
     }
   }, [isOpen]);
 
+  // Load chat history on first open
+  useEffect(() => {
+    if (!isOpen || historyLoaded) return;
+
+    const loadHistory = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data } = await supabase
+        .from("ai_chat_messages")
+        .select("role, content")
+        .order("created_at", { ascending: true })
+        .limit(100);
+
+      if (data && data.length > 0) {
+        setMessages(data.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })));
+      }
+      setHistoryLoaded(true);
+    };
+
+    loadHistory();
+  }, [isOpen, historyLoaded]);
+
+  const persistMessage = async (role: "user" | "assistant", content: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    await supabase.from("ai_chat_messages").insert({
+      user_id: session.user.id,
+      role,
+      content,
+    });
+  };
+
+  const clearHistory = async () => {
+    setMessages([]);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await supabase.from("ai_chat_messages").delete().eq("user_id", session.user.id);
+  };
+
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
@@ -51,6 +93,9 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
+
+    // Persist user message
+    persistMessage("user", trimmed);
 
     let assistantSoFar = "";
     const allMessages = [...messages, userMsg];
@@ -110,24 +155,17 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
 
           try {
             const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as
-              | string
-              | undefined;
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
               assistantSoFar += content;
               setMessages((prev) => {
                 const last = prev[prev.length - 1];
                 if (last?.role === "assistant") {
                   return prev.map((m, i) =>
-                    i === prev.length - 1
-                      ? { ...m, content: assistantSoFar }
-                      : m
+                    i === prev.length - 1 ? { ...m, content: assistantSoFar } : m
                   );
                 }
-                return [
-                  ...prev,
-                  { role: "assistant", content: assistantSoFar },
-                ];
+                return [...prev, { role: "assistant", content: assistantSoFar }];
               });
             }
           } catch {
@@ -148,24 +186,17 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
           if (jsonStr === "[DONE]") continue;
           try {
             const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as
-              | string
-              | undefined;
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
               assistantSoFar += content;
               setMessages((prev) => {
                 const last = prev[prev.length - 1];
                 if (last?.role === "assistant") {
                   return prev.map((m, i) =>
-                    i === prev.length - 1
-                      ? { ...m, content: assistantSoFar }
-                      : m
+                    i === prev.length - 1 ? { ...m, content: assistantSoFar } : m
                   );
                 }
-                return [
-                  ...prev,
-                  { role: "assistant", content: assistantSoFar },
-                ];
+                return [...prev, { role: "assistant", content: assistantSoFar }];
               });
             }
           } catch {
@@ -173,14 +204,15 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
           }
         }
       }
+
+      // Persist final assistant message
+      if (assistantSoFar) {
+        persistMessage("assistant", assistantSoFar);
+      }
     } catch (e: any) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `Sorry, I couldn't process that. ${e.message || "Please try again."}`,
-        },
-      ]);
+      const errorMsg = `Sorry, I couldn't process that. ${e.message || "Please try again."}`;
+      setMessages((prev) => [...prev, { role: "assistant", content: errorMsg }]);
+      persistMessage("assistant", errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -210,12 +242,8 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                 <Sparkles className="h-4.5 w-4.5 text-primary-foreground" />
               </div>
               <div>
-                <h2 className="font-semibold text-sm text-foreground">
-                  ExpenX AI
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  Financial Assistant
-                </p>
+                <h2 className="font-semibold text-sm text-foreground">ExpenX AI</h2>
+                <p className="text-xs text-muted-foreground">Financial Assistant</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -224,17 +252,12 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive"
-                  onClick={() => setMessages([])}
+                  onClick={clearHistory}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={onClose}
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={onClose}>
                 <X className="h-5 w-5" />
               </Button>
             </div>
@@ -248,12 +271,9 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                   <Sparkles className="h-8 w-8 text-primary" />
                 </div>
                 <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold text-foreground">
-                    Ask me anything about your finances
-                  </h3>
+                  <h3 className="text-lg font-semibold text-foreground">Ask me anything about your finances</h3>
                   <p className="text-sm text-muted-foreground max-w-xs">
-                    I can analyze your spending, group expenses, and
-                    investments.
+                    I can analyze your spending, group expenses, and investments.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 gap-2 w-full max-w-sm">
@@ -271,13 +291,7 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
             )}
 
             {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex",
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                )}
-              >
+              <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
                 <div
                   className={cn(
                     "max-w-[85%] rounded-2xl px-4 py-3 text-sm",
@@ -326,10 +340,7 @@ export function AIChatDialog({ isOpen, onClose }: AIChatDialogProps) {
                     "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
                     "max-h-32 scrollbar-thin"
                   )}
-                  style={{
-                    height: "auto",
-                    minHeight: "44px",
-                  }}
+                  style={{ height: "auto", minHeight: "44px" }}
                   onInput={(e) => {
                     const target = e.target as HTMLTextAreaElement;
                     target.style.height = "auto";
